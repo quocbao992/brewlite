@@ -1,0 +1,42 @@
+name: Backend Pipeline
+
+on:
+  push:
+    branches: [ "main", "master", "TienDat" ]
+    paths:
+      - 'apps/backend/**'
+      - 'pom.xml'
+      - '.mvn/**'
+      - 'mvnw'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ "main", "master" ]
+    paths:
+      - 'apps/backend/**'
+      - 'pom.xml'
+      - '.mvn/**'
+      - 'mvnw'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  backend-ci:
+    name: Backend Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cấp quyền thực thi cho Maven Wrapper
+        run: chmod +x mvnw
+
+      - name: Chạy kiểm thử tự động với Maven
+        run: ./mvnw clean test
+
