@@ -1,0 +1,15 @@
+target/
+**/target/
+.idea/
+.vscode/
+*.iml
+*.log
+.env
+
+# Node / Frontend
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+frontend/dist/
+.DS_Store
