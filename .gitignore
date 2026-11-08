@@ -13,3 +13,9 @@ dist/
 **/dist/
 frontend/dist/
 .DS_Store
+apps/backend/target/classes/vn/doancnpm/domain/Promotion.class
+apps/backend/target/classes/vn/doancnpm/dto/Request/CategoryRequest.class
+apps/backend/target/classes/vn/doancnpm/dto/Request/CategoryRequest.class
+apps/backend/target/classes/vn/doancnpm/BrewLiteApplication.class
+*.class
+*.class
