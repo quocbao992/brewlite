@@ -19,3 +19,7 @@ apps/backend/target/classes/vn/doancnpm/dto/Request/CategoryRequest.class
 apps/backend/target/classes/vn/doancnpm/BrewLiteApplication.class
 *.class
 *.class
+
+target/
+*.class
+
