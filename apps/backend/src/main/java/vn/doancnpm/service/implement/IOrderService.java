@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import vn.doancnpm.domain.Customer;
 import vn.doancnpm.domain.Order;
 import vn.doancnpm.domain.OrderItem;
 import vn.doancnpm.domain.OrderItemTopping;
@@ -25,13 +26,13 @@ import vn.doancnpm.dto.Response.OrderItemToppingResponse;
 import vn.doancnpm.dto.Response.OrderResponse;
 import vn.doancnpm.dto.Response.OrderSummaryResponse;
 import vn.doancnpm.dto.Response.PageResponse;
-import vn.doancnpm.repository.OrderRepository;
-import vn.doancnpm.domain.Customer;
 import vn.doancnpm.repository.CustomerRepository;
+import vn.doancnpm.repository.OrderRepository;
+import vn.doancnpm.service.LoyaltyService;
 import vn.doancnpm.service.OrderService;
 import vn.doancnpm.service.ProductInventoryService;
 import vn.doancnpm.service.ToppingInventoryService;
-import vn.doancnpm.service.LoyaltyService;
+
 @SuppressWarnings("null")
 @Service
 @RequiredArgsConstructor
@@ -98,12 +99,13 @@ public class IOrderService implements OrderService {
         order.setStatus(newStatus);
         Order saved = orderRepo.save(order);
         if (newStatus == Order.Status.COMPLETED) {
-            loyaltyService.earnPoints(orderId);   // cộng điểm thưởng
+            loyaltyService.earnPoints(orderId); // cộng điểm thưởng
         }
         return mapToOrderResponse(saved);
     }
 
-    // ===================== Hủy đơn (Chỉ đơn chưa thanh toán PENDING / PAYMENT_FAILED) =====================
+    // ===================== Hủy đơn (Chỉ đơn chưa thanh toán PENDING /
+    // PAYMENT_FAILED) =====================
     @Override
     public OrderResponse cancel(Long orderId, String reason) {
         Order order = findOrder(orderId);
@@ -114,7 +116,7 @@ public class IOrderService implements OrderService {
         order.setStatus(Order.Status.CANCELLED);
         order.setCancelReason(reason);
         Order saved = orderRepo.save(order);
-        loyaltyService.revertPoints(orderId);   // trả lại điểm khách đã dùng nếu có
+        loyaltyService.revertPoints(orderId); // trả lại điểm khách đã dùng nếu có
         return mapToOrderResponse(saved);
     }
 
@@ -137,9 +139,9 @@ public class IOrderService implements OrderService {
             if (status != null) {
                 ps.add(cb.equal(root.get("status"), status));
             }
-          //  if (paymentMethod != null) {
-            //    ps.add(cb.equal(root.get("paymentMethod"), paymentMethod));
-          //  }
+            // if (paymentMethod != null) {
+            // ps.add(cb.equal(root.get("paymentMethod"), paymentMethod));
+            // }
             return cb.and(ps.toArray(new Predicate[0]));
         };
 
@@ -189,7 +191,7 @@ public class IOrderService implements OrderService {
                 .id(o.getId())
                 .orderCode(o.getOrderCode())
                 .customerName(o.getCustomer().getUser().getFullName()) // đổi theo tên field thật của Customer
-                .phone(o.getCustomer().getPhone())           // đổi theo tên field thật của Customer
+                .phone(o.getCustomer().getPhone()) // đổi theo tên field thật của Customer
                 .totalAmount(o.getTotalAmount())
                 .status(o.getStatus())
                 .createdAt(o.getCreatedAt())
