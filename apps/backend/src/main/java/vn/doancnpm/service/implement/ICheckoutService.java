@@ -12,24 +12,21 @@ import lombok.RequiredArgsConstructor;
 import vn.doancnpm.domain.Cart;
 import vn.doancnpm.domain.CartItem;
 import vn.doancnpm.domain.CartItemTopping;
+import vn.doancnpm.domain.Customer;
 import vn.doancnpm.domain.Order;
 import vn.doancnpm.domain.OrderItem;
 import vn.doancnpm.domain.OrderItemTopping;
-import vn.doancnpm.domain.Product;
-import vn.doancnpm.domain.Customer;
 import vn.doancnpm.dto.Request.CheckoutRequest;
 import vn.doancnpm.dto.Response.OrderResponse;
 import vn.doancnpm.repository.CartItemRepository;
 import vn.doancnpm.repository.CartRepository;
+import vn.doancnpm.repository.CustomerRepository;
 import vn.doancnpm.repository.OrderRepository;
 import vn.doancnpm.service.CheckoutService;
-import vn.doancnpm.service.OrderService;
 import vn.doancnpm.service.LoyaltyService;
-import vn.doancnpm.service.PromotionService;
-import vn.doancnpm.repository.CustomerRepository;
-import java.util.HashMap;
-import java.util.Map;
+import vn.doancnpm.service.OrderService;
 import vn.doancnpm.service.ProductInventoryService;
+import vn.doancnpm.service.PromotionService;
 import vn.doancnpm.service.ToppingInventoryService;
 
 @Service
@@ -210,29 +207,30 @@ public class ICheckoutService implements CheckoutService {
             throw new IllegalStateException("Đơn không ở trạng thái có thể xác nhận thanh toán");
         }
 
-        /* 
-        for (OrderItem oi : order.getItems()) {
-            Product p = productRepo.findById(oi.getProduct().getId())
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
-
-            int stock = p.getStock() == null ? 0 : p.getStock();
-            if (stock < oi.getQuantity()) {
-                throw new IllegalStateException("Không đủ hàng: " + oi.getProductName());
-            }
-        
-            p.setStock(stock - oi.getQuantity());
-            productRepo.saveAndFlush(p);  
-        
-
-            // 2. Ghi nhật ký vào inventory_log
-            InventoryLog log = new InventoryLog();
-            log.setChangeType("EXPORT"); 
-            log.setQuantityChange(-oi.getQuantity()); // Số lượng âm thể hiện xuất bán
-            log.setOrder(order);
-            log.setProduct(oi.getProduct());
-            log.setCreatedAt(LocalDateTime.now());
-            inventoryLogRepo.save(log);
-        } cũ*/ 
+        /*
+         * for (OrderItem oi : order.getItems()) {
+         * Product p = productRepo.findById(oi.getProduct().getId())
+         * .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
+         * 
+         * int stock = p.getStock() == null ? 0 : p.getStock();
+         * if (stock < oi.getQuantity()) {
+         * throw new IllegalStateException("Không đủ hàng: " + oi.getProductName());
+         * }
+         * 
+         * p.setStock(stock - oi.getQuantity());
+         * productRepo.saveAndFlush(p);
+         * 
+         * 
+         * // 2. Ghi nhật ký vào inventory_log
+         * InventoryLog log = new InventoryLog();
+         * log.setChangeType("EXPORT");
+         * log.setQuantityChange(-oi.getQuantity()); // Số lượng âm thể hiện xuất bán
+         * log.setOrder(order);
+         * log.setProduct(oi.getProduct());
+         * log.setCreatedAt(LocalDateTime.now());
+         * inventoryLogRepo.save(log);
+         * } cũ
+         */
         /*
          * for (OrderItem oi : order.getItems()) {
          * // 1. Trừ tồn kho

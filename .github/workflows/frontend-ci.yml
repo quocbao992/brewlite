@@ -2,7 +2,7 @@ name: Frontend Pipeline
 
 on:
   push:
-    branches: [ "main", "master", "TienDat" ]
+    branches: [ "main", "master"]
     paths:
       - 'apps/frontend/**'
       - '.github/workflows/frontend-ci.yml'
