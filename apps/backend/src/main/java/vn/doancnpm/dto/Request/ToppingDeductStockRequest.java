@@ -1,4 +1,4 @@
-package vn.doancnpm.dto.Request;//
+package vn.doancnpm.dto.Request;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -9,13 +9,12 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ToppingStockRequest {
-    @NotNull(message = "toppingId không được để trống")
-    private Long toppingId;
-
+public class ToppingDeductStockRequest {
+    @NotNull(message = "productId không được để trống")
+    private Long productId;
+    @NotNull(message = "orderId không được để trống")
+    private Long orderId;
     @Positive(message = "Số lượng phải lớn hơn 0")
     private int amount;
 
-    private String reason; // VD: "IMPORT", "DAMAGED", "ORDER_DEDUCT"
-    
 }

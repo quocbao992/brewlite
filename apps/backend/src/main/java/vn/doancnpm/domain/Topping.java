@@ -32,11 +32,6 @@ public class Topping {
     @Column(name = "unit_price",nullable = false)
     private BigDecimal unitPrice;
 
-    // BỔ SUNG: Số lượng tồn kho
-    /*@Column(name = "stock", nullable = false)
-    @Builder.Default
-    private Integer stock = 0;
-    */
     @Column(name = "status",nullable = false)
     @Builder.Default
     private Boolean status=true;

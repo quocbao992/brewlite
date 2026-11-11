@@ -1,4 +1,4 @@
-package vn.doancnpm.service.implement;//
+package vn.doancnpm.service.implement;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.EntityNotFoundException;
-
+import vn.doancnpm.domain.InventoryLog.ChangeType;
 import vn.doancnpm.domain.InventoryTopping;
 import vn.doancnpm.domain.Order;
 import vn.doancnpm.domain.Topping;
@@ -58,12 +58,12 @@ public class IToppingInventoryService implements ToppingInventoryService {
 
         invTopping.setStock(invTopping.getStock() - deductAmount);
         inventoryToppingRepository.save(invTopping);
-        inventoryLogService.logToppingChange(topping, order, -deductAmount,"KHÁCH MUA TRỪ BÁN");
+        inventoryLogService.logToppingChange(topping, order, -deductAmount,ChangeType.ORDER_DEDUCT);
     }
 
     @Override
     @Transactional
-    public void addStock(Long toppingId, Order order, int addAmount, String reason) {
+    public void addStock(Long toppingId, Order order,int addAmount, String reason) {
         if (addAmount <= 0) {
             throw new IllegalArgumentException("Số lượng thêm phải lớn hơn 0");
         }
@@ -82,7 +82,10 @@ public class IToppingInventoryService implements ToppingInventoryService {
 
         invTopping.setStock(invTopping.getStock() + addAmount);
         inventoryToppingRepository.save(invTopping);
-        inventoryLogService.logToppingChange(topping, order, addAmount,reason != null ? reason : "THÊM ĐANG BÁN");
+        inventoryLogService.logToppingChange(topping, null, addAmount,ChangeType.IMPORT
+        ,reason
+        //reason != null ? reason : "THÊM ĐANG BÁN"
+        );
     }
 
     @Override
@@ -107,7 +110,8 @@ public class IToppingInventoryService implements ToppingInventoryService {
         int currentWh = invTopping.getWarehouseStock() != null ? invTopping.getWarehouseStock() : 0;
         invTopping.setWarehouseStock(currentWh + amount);
         inventoryToppingRepository.save(invTopping);
-        inventoryLogService.logToppingChange(topping, null, amount,reason != null && !reason.isBlank() ? reason : "NHẬP TỒN KHO");
+        inventoryLogService.logToppingChange(topping, null, amount,ChangeType.IMPORT,reason != null && !reason.isBlank() ? reason : "NHẬP KHO"
+        );
     }
 
     @Override
@@ -131,7 +135,9 @@ public class IToppingInventoryService implements ToppingInventoryService {
         invTopping.setStock((invTopping.getStock() != null ? invTopping.getStock() : 0) + amount);
         inventoryToppingRepository.save(invTopping);
 
-        inventoryLogService.logToppingChange(topping, null, amount, "CHUYỂN SANG BÁN (Kho -> Quầy)");
+        inventoryLogService.logToppingChange(topping, null, amount,ChangeType.TRANSFER,
+        "CHUYỂN SANG BÁN (Kho -> Quầy)"
+        );
     }
 
     @Override
