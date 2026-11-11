@@ -195,7 +195,7 @@ jobs:
           fi
 
   rollback:
-    name: Rollback (Khi Thất Bại)
+    name: Rollback
     needs: [deploy, smoke-test]
     if: failure()
     runs-on: ubuntu-latest
