@@ -18,20 +18,38 @@ services:
       - "6379:6379"
     restart: always
 
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: brewlite_backend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/app_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+    depends_on:
+      - db
+      - redis
+
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile
     container_name: brewlite_frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - VITE_BACKEND_URL=http://host.docker.internal:8081
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - VITE_BACKEND_URL=http://localhost:8081
+    depends_on:
+      - backend
     volumes:
-      - ./frontend:/app
+      - ./apps/frontend:/app
       - /app/node_modules
 
 volumes:
