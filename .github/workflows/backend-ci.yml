@@ -8,6 +8,7 @@ on:
 
 jobs:
   backend-ci:
+    name: Backend Test & Build
     runs-on: ubuntu-latest
   
 

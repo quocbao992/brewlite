@@ -85,7 +85,6 @@ public class IProductInventoryService implements ProductInventoryService {
         inventoryProductRepository.save(invProduct);
         inventoryLogService.logProductChange(product, null, addAmount,ChangeType.IMPORT 
         ,reason
-        //reason != null ? reason : "THÊM ĐANG BÁN"
         );
     }
 
@@ -218,5 +217,11 @@ public class IProductInventoryService implements ProductInventoryService {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Không tìm thấy sản phẩm với ID: " + productId));
+    }
+
+    @Override
+    public void initInventory(Long productId, int initialWarehouseStock) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'initInventory'");
     }
 }

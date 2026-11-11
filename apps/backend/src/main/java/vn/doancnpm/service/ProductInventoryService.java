@@ -28,4 +28,6 @@ public interface ProductInventoryService {
     int getAvailableStock(Long productId);
 
     void setStock(Long productId, int newStock, String reason);
+
+    void initInventory(Long productId, int initialWarehouseStock);
 }
