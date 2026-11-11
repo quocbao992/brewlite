@@ -42,6 +42,46 @@ public class IAuthService implements AuthService {
     private final StringRedisTemplate redisTemplate;
     private final JWTUtils jwtUtils;
 
+    private final java.util.concurrent.ConcurrentHashMap<String, String> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void storeValue(String key, String value, long timeout, TimeUnit unit) {
+        try {
+            redisTemplate.opsForValue().set(key, value, timeout, unit);
+        } catch (Exception e) {
+            inMemoryStore.put(key, value);
+        }
+    }
+
+    private String getValue(String key) {
+        try {
+            String val = redisTemplate.opsForValue().get(key);
+            if (val != null) {
+                return val;
+            }
+        } catch (Exception ignored) {
+        }
+        return inMemoryStore.get(key);
+    }
+
+    private void deleteValue(String key) {
+        try {
+            redisTemplate.delete(key);
+        } catch (Exception ignored) {
+        }
+        inMemoryStore.remove(key);
+    }
+
+    private boolean hasKey(String key) {
+        try {
+            Boolean has = redisTemplate.hasKey(key);
+            if (has != null && has) {
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        return inMemoryStore.containsKey(key);
+    }
+
     private UserResponse covertToResponse(User user) {
         Customer customer = customerRepository.findByUserId(user.getId()).orElse(null);
         return UserResponse.builder()
@@ -92,7 +132,7 @@ public class IAuthService implements AuthService {
         String refreshToken = UUID.randomUUID().toString();
 
         long refreshTokenDurationDays = 7;
-        redisTemplate.opsForValue().set(
+        storeValue(
                 "refresh:" + refreshToken,
                 user.getUsername(),
                 refreshTokenDurationDays,
@@ -160,19 +200,19 @@ public class IAuthService implements AuthService {
         if(accesstoken != null ) {
             long remain = jwtUtils.getRemainingExpiration(accesstoken);
             if(remain > 0 ) {
-                redisTemplate.opsForValue().set("blacklist:" + accesstoken, "logout", remain, TimeUnit.MILLISECONDS);
+                storeValue("blacklist:" + accesstoken, "logout", remain, TimeUnit.MILLISECONDS);
             }
         }
 
         if(refreshtoken != null && !refreshtoken.isBlank()) {
-            redisTemplate.delete("refresh:" + refreshtoken);
+            deleteValue("refresh:" + refreshtoken);
         }
         SecurityContextHolder.clearContext();
     }
 
     @Override 
     public boolean isTokenBlacklisted(String token) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey("blacklisted:"+ token));
+        return hasKey("blacklist:" + token) || hasKey("blacklisted:" + token);
     }
 
     @Override
@@ -180,18 +220,18 @@ public class IAuthService implements AuthService {
         String incomingRefreshToken = request.getRefreshToken();
 
         String redisKey = "refresh:" + incomingRefreshToken;
-        String username = redisTemplate.opsForValue().get(redisKey);
+        String username = getValue(redisKey);
 
         if (username == null) {
             throw new RuntimeException("Refresh token không hợp lệ hoặc đã hết hạn");
         }
 
-        redisTemplate.delete(redisKey);
+        deleteValue(redisKey);
 
         String newAccessToken = jwtUtils.generateToken(username);
         String newRefreshToken = UUID.randomUUID().toString();
 
-        redisTemplate.opsForValue().set(
+        storeValue(
             "refresh:" + newRefreshToken,
             username,
             7,
@@ -219,7 +259,7 @@ public class IAuthService implements AuthService {
         }
 
         String resetOtp = UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set(
+        storeValue(
                 "password-reset:" + resetOtp,
                 user.getId().toString(),
                 15,
@@ -235,7 +275,7 @@ public class IAuthService implements AuthService {
     @Override
     public void resetPassword(ResetPasswordRequest request) {
         String redisKey = "password-reset:" + request.getOtpToken();
-        String userId = redisTemplate.opsForValue().get(redisKey);
+        String userId = getValue(redisKey);
         if(userId == null) {
             throw new IllegalArgumentException("Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
         }
@@ -245,7 +285,7 @@ public class IAuthService implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         
-        redisTemplate.delete(redisKey);
+        deleteValue(redisKey);
 
     }
 }
