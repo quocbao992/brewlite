@@ -1,25 +1,111 @@
+# =========================================================================
+# Maven / Java Build Outputs (Backend)
+# =========================================================================
 target/
 **/target/
-.idea/
-.vscode/
-*.iml
-*.log
-.env
+apps/backend/target/
+*.class
+**/*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
 
-# Node / Frontend
+# Virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+# =========================================================================
+# Node / Frontend Build Outputs
+# =========================================================================
 node_modules/
 **/node_modules/
+apps/frontend/node_modules/
 dist/
 **/dist/
+apps/frontend/dist/
 frontend/dist/
+.next/
+out/
+build/
+.npm
+.yarn-integrity
+
+# =========================================================================
+# IDEs and Editors
+# =========================================================================
+.idea/
+**/.idea/
+*.iml
+**/*.iml
+*.iws
+*.ipr
+.vscode/
+**/.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.classpath
+.project
+.settings/
+**/.settings/
+
+# =========================================================================
+# Environment variables and Logs
+# =========================================================================
+.env
+**/.env
+*.env.local
+*.log
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.idea/
+**/.idea/
+*.iml
+**/*.iml
+*.iws
+*.ipr
+.vscode/
+**/.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.classpath
+.project
+.settings/
+**/.settings/
+
+# =========================================================================
+# Operating System files
+# =========================================================================
 .DS_Store
-apps/backend/target/classes/vn/doancnpm/domain/Promotion.class
-apps/backend/target/classes/vn/doancnpm/dto/Request/CategoryRequest.class
-apps/backend/target/classes/vn/doancnpm/dto/Request/CategoryRequest.class
-apps/backend/target/classes/vn/doancnpm/BrewLiteApplication.class
-*.class
-*.class
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
 
-target/
-*.class
 
+.env
+**/.env
+*.env.local
+*.log
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+.DS_Store
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
