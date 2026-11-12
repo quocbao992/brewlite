@@ -34,7 +34,6 @@ import vn.doancnpm.repository.CustomerRepository;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class IAuthService implements AuthService {
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
@@ -43,41 +42,55 @@ public class IAuthService implements AuthService {
     private final JWTUtils jwtUtils;
 
     private final java.util.concurrent.ConcurrentHashMap<String, String> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile boolean redisAvailable = true;
 
     private void storeValue(String key, String value, long timeout, TimeUnit unit) {
-        try {
-            redisTemplate.opsForValue().set(key, value, timeout, unit);
-        } catch (Exception e) {
-            inMemoryStore.put(key, value);
+        if (redisAvailable) {
+            try {
+                redisTemplate.opsForValue().set(key, value, timeout, unit);
+                return;
+            } catch (Throwable t) {
+                redisAvailable = false;
+            }
         }
+        inMemoryStore.put(key, value);
     }
 
     private String getValue(String key) {
-        try {
-            String val = redisTemplate.opsForValue().get(key);
-            if (val != null) {
-                return val;
+        if (redisAvailable) {
+            try {
+                String val = redisTemplate.opsForValue().get(key);
+                if (val != null) {
+                    return val;
+                }
+            } catch (Throwable t) {
+                redisAvailable = false;
             }
-        } catch (Exception ignored) {
         }
         return inMemoryStore.get(key);
     }
 
     private void deleteValue(String key) {
-        try {
-            redisTemplate.delete(key);
-        } catch (Exception ignored) {
+        if (redisAvailable) {
+            try {
+                redisTemplate.delete(key);
+            } catch (Throwable t) {
+                redisAvailable = false;
+            }
         }
         inMemoryStore.remove(key);
     }
 
     private boolean hasKey(String key) {
-        try {
-            Boolean has = redisTemplate.hasKey(key);
-            if (has != null && has) {
-                return true;
+        if (redisAvailable) {
+            try {
+                Boolean has = redisTemplate.hasKey(key);
+                if (has != null && has) {
+                    return true;
+                }
+            } catch (Throwable t) {
+                redisAvailable = false;
             }
-        } catch (Exception ignored) {
         }
         return inMemoryStore.containsKey(key);
     }
@@ -153,6 +166,7 @@ public class IAuthService implements AuthService {
     }
 
     @Override
+    @Transactional
     public RegisterResponse register(RegisterRequest request) {
         String username = request.getUsername().trim();
 
@@ -273,6 +287,7 @@ public class IAuthService implements AuthService {
     }
 
     @Override
+    @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         String redisKey = "password-reset:" + request.getOtpToken();
         String userId = getValue(redisKey);

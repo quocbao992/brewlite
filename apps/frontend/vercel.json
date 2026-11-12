@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://brewlite-backend-la8j.onrender.com/api/$1"
+    },
+    {
+      "source": "/mock-gateway/(.*)",
+      "destination": "https://brewlite-backend-la8j.onrender.com/mock-gateway/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
