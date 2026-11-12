@@ -63,3 +63,4 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, "Dữ liệu vừa bị thay đổi, vui lòng thử lại");
     }
 }
+

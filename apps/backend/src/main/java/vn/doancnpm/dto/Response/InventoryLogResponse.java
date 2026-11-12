@@ -1,4 +1,4 @@
-package vn.doancnpm.dto.Response;//
+package vn.doancnpm.dto.Response;
 
 import java.time.LocalDateTime;
 import lombok.*;
@@ -16,6 +16,7 @@ public class InventoryLogResponse {
     private String toppingName;
     private Integer quantityChange;
     private String changeType;
+    private String reason;
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }

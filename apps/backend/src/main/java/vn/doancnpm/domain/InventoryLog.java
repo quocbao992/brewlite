@@ -1,6 +1,8 @@
 package vn.doancnpm.domain;
 
 import java.time.LocalDateTime;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,11 +41,21 @@ public abstract class InventoryLog {
     @Column(name = "QuantityChange", nullable = false)
     private int quantityChange;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "ChangeType", nullable = false)
-    private String changeType;
+    private ChangeType changeType;
 
+    @Column(name = "reason")
+    private String reason;
     @Column(name = "createdAt", nullable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public enum ChangeType {
+    IMPORT,        // nhập hàng / cộng kho
+    ORDER_DEDUCT,   // khách đặt hàng, trừ kho
+    TRANSFER,       // chuyển kho -> quầy
+    
+}
 }
 

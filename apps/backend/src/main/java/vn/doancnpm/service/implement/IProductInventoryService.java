@@ -16,6 +16,7 @@ import vn.doancnpm.repository.InventoryProductRepository;
 import vn.doancnpm.repository.ProductRepository;
 import vn.doancnpm.service.InventoryLogService;
 import vn.doancnpm.service.ProductInventoryService;
+import vn.doancnpm.domain.InventoryLog.ChangeType;
 
 @Service
 @Transactional(readOnly = true)
@@ -58,12 +59,12 @@ public class IProductInventoryService implements ProductInventoryService {
 
         invProduct.setStock(invProduct.getStock() - deductAmount);
         inventoryProductRepository.save(invProduct);
-        inventoryLogService.logProductChange(product, order, -deductAmount, "KHÁCH MUA TRỪ BÁN");
+        inventoryLogService.logProductChange(product, order, -deductAmount, ChangeType.ORDER_DEDUCT);
     }
 
     @Override
     @Transactional
-    public void addStock(Long productId, Order order, int addAmount, String reason) {
+    public void addStock(Long productId,Order order, int addAmount, String reason) {
         if (addAmount <= 0) {
             throw new IllegalArgumentException("Số lượng thêm phải lớn hơn 0");
         }
@@ -75,14 +76,16 @@ public class IProductInventoryService implements ProductInventoryService {
                     InventoryProduct p = new InventoryProduct();
                     p.setProduct(product);
                     p.setStock(0);
-                    p.setWarehouseStock(0);
+                    p.setWarehouseStock(100);
                     p.setMinThreshold(5);
                     return p;
                 });
 
         invProduct.setStock(invProduct.getStock() + addAmount);
         inventoryProductRepository.save(invProduct);
-        inventoryLogService.logProductChange(product, order, addAmount, reason != null ? reason : "THÊM ĐANG BÁN");
+        inventoryLogService.logProductChange(product, null, addAmount,ChangeType.IMPORT 
+        ,reason
+        );
     }
 
     @Override
@@ -107,8 +110,8 @@ public class IProductInventoryService implements ProductInventoryService {
         int currentWh = invProduct.getWarehouseStock() != null ? invProduct.getWarehouseStock() : 0;
         invProduct.setWarehouseStock(currentWh + amount);
         inventoryProductRepository.save(invProduct);
-        inventoryLogService.logProductChange(product, null, amount,
-                reason != null && !reason.isBlank() ? reason : "NHẬP TỒN KHO");
+        inventoryLogService.logProductChange(product, null, amount, ChangeType.IMPORT, reason != null && !reason.isBlank() ? reason : "NHẬP KHO"
+        );
     }
 
     @Override
@@ -133,7 +136,8 @@ public class IProductInventoryService implements ProductInventoryService {
         invProduct.setStock((invProduct.getStock() != null ? invProduct.getStock() : 0) + amount);
         inventoryProductRepository.save(invProduct);
 
-        inventoryLogService.logProductChange(product, null, amount, "CHUYỂN SANG BÁN (Kho -> Quầy)");
+        inventoryLogService.logProductChange(product, null, amount,ChangeType.TRANSFER,"CHUYỂN SANG BÁN (Kho -> Quầy)"
+         );
     }
 
     @Override
@@ -164,7 +168,7 @@ public class IProductInventoryService implements ProductInventoryService {
                         InventoryProduct created = new InventoryProduct();
                         created.setProduct(p);
                         created.setStock(0);
-                        created.setWarehouseStock(0);
+                        created.setWarehouseStock(100);
                         created.setMinThreshold(5);
                         return inventoryProductRepository.save(created);
                     });
@@ -194,12 +198,13 @@ public class IProductInventoryService implements ProductInventoryService {
     @Override
     @Transactional
     public void setStock(Long productId, int stock, String reason) {
+        
         InventoryProduct inv = inventoryProductRepository.findByProductId(productId)
                 .orElseGet(() -> {
                     InventoryProduct newInv = new InventoryProduct();
                     newInv.setProduct(productRepository.getReferenceById(productId));
                     newInv.setMinThreshold(5);
-                    newInv.setWarehouseStock(0);
+                    newInv.setWarehouseStock(100);
                     newInv.setStock(0);
                     return newInv;
                 });
@@ -208,27 +213,15 @@ public class IProductInventoryService implements ProductInventoryService {
         inventoryProductRepository.save(inv);
     }
 
-    @Override
-    @Transactional
-    public void initInventory(Long productId, int initialWarehouseStock) {
-        InventoryProduct inv = inventoryProductRepository.findByProductId(productId)
-                .orElseGet(() -> {
-                    InventoryProduct newInv = new InventoryProduct();
-                    newInv.setProduct(productRepository.getReferenceById(productId));
-                    newInv.setMinThreshold(5);
-                    newInv.setWarehouseStock(0);
-                    newInv.setStock(0);
-                    return newInv;
-                });
-        inv.setStock(0);
-        inv.setWarehouseStock(initialWarehouseStock > 0 ? initialWarehouseStock : 0);
-        inventoryProductRepository.save(inv);
-    }
-
     private Product findProductOrThrow(Long productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Không tìm thấy sản phẩm với ID: " + productId));
     }
-}
 
+    @Override
+    public void initInventory(Long productId, int initialWarehouseStock) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'initInventory'");
+    }
+}
