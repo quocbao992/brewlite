@@ -169,6 +169,11 @@ public class IAuthService implements AuthService {
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
+        if (request.getConfirmPassword() != null && !request.getConfirmPassword().isBlank()
+                && !request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Mật khẩu và xác nhận mật khẩu không khớp");
+        }
+
         String username = request.getUsername().trim();
 
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);

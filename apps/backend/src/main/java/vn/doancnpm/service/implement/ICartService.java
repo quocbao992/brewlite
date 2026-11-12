@@ -66,13 +66,11 @@ public class ICartService implements CartService {
     CartItem incomingItem = maptoCartItem(rq);
     incomingItem.setCart(cart);
     incomingItem.setProduct(product);
-    BigDecimal sizeExtra = BigDecimal.ZERO;
-    if (incomingItem.getSize() == CartItem.Size.M) {
-      sizeExtra = BigDecimal.valueOf(5000);
-    } else if (incomingItem.getSize() == CartItem.Size.L) {
-      sizeExtra = BigDecimal.valueOf(10000);
+    BigDecimal itemPrice = rq.getItem().getUnitPrice();
+    if (itemPrice == null) {
+      itemPrice = product.getUnitPrice();
     }
-    incomingItem.setUnitPrice(product.getUnitPrice().add(sizeExtra));
+    incomingItem.setUnitPrice(itemPrice);
 
     List<CartItem> existingItems =
         cartItemRepo.findByCartIdAndProductId(cart.getId(), product.getId());
@@ -88,6 +86,9 @@ public class ICartService implements CartService {
 
     if (matchedItem != null) {
       matchedItem.setQuantity(matchedItem.getQuantity() + incomingItem.getQuantity());
+      if (incomingItem.getUnitPrice() != null) {
+        matchedItem.setUnitPrice(incomingItem.getUnitPrice());
+      }
       cartItemRepo.save(matchedItem);
     } else {
       cartItemRepo.save(incomingItem);
@@ -125,12 +126,15 @@ public class ICartService implements CartService {
   public void clearCart(Long customerId) {
     Customer customer = findCustomer(customerId);
 
-    Cart cart = cartRepo.findByCustomerId(customer.getId()).orElse(null);
-    if (cart != null) {
-      List<CartItem> items = cartItemRepo.findByCart(cart);
-      if (!items.isEmpty()) {
-        cartItemRepo.deleteAll(items);
-      }
+    Cart cart =
+        cartRepo
+            .findByCustomerId(customer.getId())
+            .orElseThrow(
+                () -> new IllegalArgumentException("Không tìm thấy giỏ hàng của khách hàng"));
+
+    List<CartItem> items = cartItemRepo.findByCart(cart);
+    if (!items.isEmpty()) {
+      cartItemRepo.deleteAll(items);
     }
   }
 
@@ -182,8 +186,8 @@ public class ICartService implements CartService {
     CartItem cartItem =
         CartItem.builder()
             .quantity(rq.getItem().getQuantity())
-            .size(rq.getItem().getSize()) // Đã map size
-            .note(rq.getItem().getNote()) // Đã map note
+            .size(rq.getItem().getSize())
+            .note(rq.getItem().getNote())
             .build();
 
     List<CartItemTopping> itemToppings = new java.util.ArrayList<>();
@@ -245,16 +249,12 @@ public class ICartService implements CartService {
       toppingResponses = item.getToppings().stream().map(this::mapToToppingResponse).toList();
     }
 
-    BigDecimal sizeExtra = BigDecimal.ZERO;
-    if (item.getSize() == CartItem.Size.M) {
-      sizeExtra = BigDecimal.valueOf(5000);
-    } else if (item.getSize() == CartItem.Size.L) {
-      sizeExtra = BigDecimal.valueOf(10000);
-    }
     BigDecimal basePrice =
-        (item.getProduct().getUnitPrice() != null)
-            ? item.getProduct().getUnitPrice().add(sizeExtra)
-            : BigDecimal.ZERO;
+        (item.getUnitPrice() != null)
+            ? item.getUnitPrice()
+            : (item.getProduct() != null && item.getProduct().getUnitPrice() != null
+                ? item.getProduct().getUnitPrice()
+                : BigDecimal.ZERO);
     BigDecimal singleItemPrice = basePrice.add(toppingTotal);
 
     BigDecimal itemTotalPrice = singleItemPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
@@ -263,7 +263,7 @@ public class ICartService implements CartService {
         .id(item.getId())
         .productId(item.getProduct().getId())
         .name(item.getProduct().getName())
-        .unitPrice(item.getProduct().getUnitPrice())
+        .unitPrice(basePrice)
         .quantity(item.getQuantity())
         .size(item.getSize())
         .note(item.getNote())

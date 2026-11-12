@@ -183,7 +183,7 @@ export const RegisterPage = ({ onNavigate }) => {
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      setErrorMsg('Mật khẩu xác nhận không khớp.');
+      setErrorMsg('Mật khẩu và xác nhận mật khẩu không khớp.');
       return;
     }
 
@@ -194,6 +194,7 @@ export const RegisterPage = ({ onNavigate }) => {
     const payload = {
       username: formData.username.trim(),
       password: formData.password,
+      confirmPassword: formData.confirmPassword,
       fullName: formData.fullName.trim(),
       email: formData.email.trim().toLowerCase(),
       phone: formData.phone.trim(),

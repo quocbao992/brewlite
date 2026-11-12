@@ -33,7 +33,35 @@ export const CartProvider = ({ children }) => {
     try {
       const res = await cartApi.getCart(customerId);
       if (res && res.items) {
-        setCartItems(res.items);
+        const mapped = res.items.map((item) => {
+          const sizeExtra = item.size === 'L' ? 10000 : item.size === 'M' ? 5000 : 0;
+          const beveragePrice = Number(item.unitPrice) || 0;
+          const basePrice = Math.max(0, beveragePrice - sizeExtra);
+          const itemToppings = (item.toppings || []).map((t) => ({
+            id: t.toppingId || t.id,
+            name: t.name,
+            unitPrice: Number(t.unitPrice) || 0,
+            quantity: t.quantity || 1,
+          }));
+          const toppingsExtra = itemToppings.reduce((sum, t) => sum + t.unitPrice * t.quantity, 0);
+          const finalUnitPrice = beveragePrice + toppingsExtra;
+          const toppingsSummary = itemToppings.map((t) => t.name).sort().join(', ');
+          return {
+            id: item.id,
+            productId: item.productId,
+            name: item.name,
+            baseUnitPrice: basePrice,
+            img: item.img || '',
+            quantity: item.quantity,
+            size: item.size || 'M',
+            unitPrice: finalUnitPrice,
+            note: item.note || '',
+            toppings: itemToppings,
+            toppingsSummary,
+            itemTotalPrice: item.itemTotalPrice || finalUnitPrice * item.quantity,
+          };
+        });
+        setCartItems(mapped);
       }
     } catch {}
   };
@@ -93,6 +121,7 @@ export const CartProvider = ({ children }) => {
             productId: product.id,
             quantity,
             size,
+            unitPrice: basePrice + sizeExtra,
             note,
             toppings: (selectedToppings || []).map((t) => ({ toppingId: t.id, quantity: 1 })),
           },

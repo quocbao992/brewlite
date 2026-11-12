@@ -31,6 +31,8 @@ public class RegisterRequest {
     )
     private String password;
 
+    private String confirmPassword;
+
     @NotBlank(message = "Họ tên không được để trống")
     @Size(min = 2, max = 100, message = "Họ tên phải có từ 2 đến 100 ký tự")
     @Pattern(

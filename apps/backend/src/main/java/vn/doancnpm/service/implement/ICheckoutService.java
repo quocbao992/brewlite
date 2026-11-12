@@ -4,11 +4,9 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import lombok.RequiredArgsConstructor;
 import vn.doancnpm.domain.Cart;
 import vn.doancnpm.domain.CartItem;
 import vn.doancnpm.domain.CartItemTopping;
@@ -39,15 +37,11 @@ public class ICheckoutService implements CheckoutService {
     private final CartItemRepository cartItemRepo;
     private final OrderRepository orderRepo;
     private final OrderService orderService;
-    // mới
-    // private final ProductRepository productRepo;cũ
-    // private final InventoryLogRepository inventoryLogRepo;cũ
     private final ProductInventoryService productInventoryService;
     private final ToppingInventoryService toppingInventoryService;
     private final LoyaltyService loyaltyService;
     private final PromotionService promotionService;
 
-    // Bước 1: chuyển giỏ hàng thành đơn PENDING (chưa trừ kho, chưa đóng giỏ)
     @Override
     public OrderResponse checkout(CheckoutRequest rq) {
         Long customerId = rq.getCustomerId();
@@ -64,27 +58,6 @@ public class ICheckoutService implements CheckoutService {
             throw new IllegalStateException("Giỏ hàng trống");
         }
 
-        // Gộp số lượng theo sản phẩm (cùng món nhưng khác size/topping vẫn tính chung 1
-        // kho)
-        /*
-         * Map<Long, Integer> need = new HashMap<>();
-         * for (CartItem ci : cartItems) {
-         * need.merge(ci.getProduct().getId(), ci.getQuantity(), (a, b) -> a + b);
-         * }
-         * for (Map.Entry<Long, Integer> e : need.entrySet()) {
-         * Product p = productRepo.findById(e.getKey())
-         * .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm " +
-         * e.getKey()));
-         * int stock = p.getStock() == null ? 0 : p.getStock();
-         * if (stock < e.getValue()) {
-         * throw new IllegalStateException("Không đủ hàng: " + p.getName()
-         * + " (còn " + stock + ", cần " + e.getValue() + ")");
-         * }
-         * }
-         */
-
-        // Gộp số lượng cần theo sản phẩm và theo topping
-        // mới
         Map<Long, Integer> needProduct = new HashMap<>();
         Map<Long, Integer> needTopping = new HashMap<>();
         for (CartItem ci : cartItems) {
@@ -107,7 +80,7 @@ public class ICheckoutService implements CheckoutService {
                         + " không đủ hàng hoặc đã ngừng bán (cần " + e.getValue() + ")");
             }
         }
-        //
+
         Order order = new Order();
         order.setCustomer(cart.getCustomer());
         order.setStatus(Order.Status.PENDING);
@@ -121,13 +94,19 @@ public class ICheckoutService implements CheckoutService {
             OrderItem oi = new OrderItem();
             oi.setOrder(order);
             oi.setProduct(ci.getProduct());
-            oi.setProductName(ci.getProduct().getName()); // sao chép tên lúc đặt
-            oi.setProductImage(ci.getProduct().getImgURL()); // sao chép ảnh lúc đặt
+            oi.setProductName(ci.getProduct().getName());
+            oi.setProductImage(ci.getProduct().getImgURL());
             oi.setSize(ci.getSize().name());
             oi.setQuantity(ci.getQuantity());
-            oi.setUnitPrice(ci.getUnitPrice()); // sao chép giá lúc đặt
 
-            // topping của 1 ly
+            BigDecimal itemPrice = ci.getUnitPrice();
+            if (itemPrice == null) {
+                itemPrice = ci.getProduct() != null && ci.getProduct().getUnitPrice() != null
+                        ? ci.getProduct().getUnitPrice()
+                        : BigDecimal.ZERO;
+            }
+            oi.setUnitPrice(itemPrice);
+
             BigDecimal toppingPerUnit = BigDecimal.ZERO;
             if (ci.getToppings() != null) {
                 for (CartItemTopping ct : ci.getToppings()) {
@@ -144,22 +123,15 @@ public class ICheckoutService implements CheckoutService {
                 }
             }
 
-            // lineTotal = (giá món + topping của 1 ly) x số lượng
-            oi.setLineTotal(ci.getUnitPrice().add(toppingPerUnit)
+            oi.setLineTotal(itemPrice.add(toppingPerUnit)
                     .multiply(BigDecimal.valueOf(ci.getQuantity())));
-            // (Giá món * số lượng ly) + Tổng tiền topping cố định
-            // BigDecimal baseTotal =
-            // ci.getUnitPrice().multiply(BigDecimal.valueOf(ci.getQuantity()));
-            // oi.setLineTotal(baseTotal.add(toppingPerUnit));
 
             order.getItems().add(oi);
             subtotal = subtotal.add(oi.getLineTotal());
-
         }
 
         order.setSubtotal(subtotal);
 
-        // 1. Mã khuyến mãi
         String code = rq.getVoucherCode();
         BigDecimal promoDiscount = BigDecimal.ZERO;
         if (code != null && !code.isBlank()) {
@@ -167,7 +139,6 @@ public class ICheckoutService implements CheckoutService {
         }
         BigDecimal afterPromo = subtotal.subtract(promoDiscount);
 
-        // 2. Điểm quy đổi
         int points = rq.getLoyaltyPointsUsed() == null ? 0 : rq.getLoyaltyPointsUsed();
         BigDecimal pointsDiscount = BigDecimal.ZERO;
         if (points > 0) {
@@ -184,7 +155,7 @@ public class ICheckoutService implements CheckoutService {
 
         Order saved = orderRepo.save(order);
         if (code != null && !code.isBlank()) {
-            promotionService.markUsed(code); // tăng lượt dùng mã
+            promotionService.markUsed(code);
         }
 
         saved.setOrderCode("BL"
@@ -193,64 +164,19 @@ public class ICheckoutService implements CheckoutService {
         return orderService.getById(saved.getId());
     }
 
-    // Bước 2: gọi sau khi thanh toán thành công -> đơn chuyển sang PAID, đóng giỏ
     @Override
     public OrderResponse confirmOrder(Long orderId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn " + orderId));
 
         if (order.getStatus() == Order.Status.PAID) {
-            return orderService.getById(orderId); // đã xác nhận rồi: không trừ kho/điểm lần nữa
+            return orderService.getById(orderId);
         }
         if (order.getStatus() != Order.Status.PENDING
                 && order.getStatus() != Order.Status.PAYMENT_FAILED) {
             throw new IllegalStateException("Đơn không ở trạng thái có thể xác nhận thanh toán");
         }
 
-        /*
-         * for (OrderItem oi : order.getItems()) {
-         * Product p = productRepo.findById(oi.getProduct().getId())
-         * .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
-         * 
-         * int stock = p.getStock() == null ? 0 : p.getStock();
-         * if (stock < oi.getQuantity()) {
-         * throw new IllegalStateException("Không đủ hàng: " + oi.getProductName());
-         * }
-         * 
-         * p.setStock(stock - oi.getQuantity());
-         * productRepo.saveAndFlush(p);
-         * 
-         * 
-         * // 2. Ghi nhật ký vào inventory_log
-         * InventoryLog log = new InventoryLog();
-         * log.setChangeType("EXPORT");
-         * log.setQuantityChange(-oi.getQuantity()); // Số lượng âm thể hiện xuất bán
-         * log.setOrder(order);
-         * log.setProduct(oi.getProduct());
-         * log.setCreatedAt(LocalDateTime.now());
-         * inventoryLogRepo.save(log);
-         * } cũ
-         */
-        /*
-         * for (OrderItem oi : order.getItems()) {
-         * // 1. Trừ tồn kho
-         * int updated = productRepo.deductStock(oi.getProduct().getId(),
-         * oi.getQuantity());
-         * if (updated == 0) {
-         * throw new IllegalStateException("Không đủ hàng: " + oi.getProductName());
-         * }
-         * 
-         * // 2. Ghi nhật ký vào inventory_log
-         * InventoryLog log = new InventoryLog();
-         * log.setChangeType("EXPORT");
-         * log.setQuantityChange(-oi.getQuantity()); // Số lượng âm thể hiện xuất bán
-         * log.setOrder(order);
-         * log.setProduct(oi.getProduct());
-         * log.setCreatedAt(LocalDateTime.now());
-         * inventoryLogRepo.save(log);
-         * } cũ
-         */
-        // mới
         for (OrderItem oi : order.getItems()) {
             productInventoryService.deductStock(oi.getProduct().getId(), order, oi.getQuantity());
             if (oi.getToppings() != null) {
@@ -258,23 +184,22 @@ public class ICheckoutService implements CheckoutService {
                     toppingInventoryService.deductStock(ot.getTopping().getId(), order, ot.getQuantity());
                 }
             }
-        } //
+        }
 
         loyaltyService.redeemPoints(orderId);
         OrderResponse res = orderService.updateStatus(orderId, Order.Status.PAID, null);
+        loyaltyService.earnPoints(orderId);
         closeCart(res.getCustomerId());
         return res;
     }
-
-    // ===================== Hàm phụ =====================
-    // Giỏ đang dùng của khách (status = true), không có thì trả null
 
     private Cart findActiveCart(Long customerId) {
         Customer customer = customerRepo.findById(customerId)
                 .or(() -> customerRepo.findByUserId(customerId))
                 .orElse(null);
-        if (customer == null)
+        if (customer == null) {
             return null;
+        }
 
         Cart cart = cartRepo.findByCustomerId(customer.getId()).orElse(null);
         if (cart != null && Boolean.FALSE.equals(cart.getStatus())) {
@@ -284,16 +209,10 @@ public class ICheckoutService implements CheckoutService {
         return cart;
     }
 
-    // Số topping cần kiểm tra/trừ kho cho một dòng giỏ hàng.
-    // Đang theo cách tính tiền hiện tại: quantity là TỔNG cho cả dòng.
-    // Nếu nhóm chốt quantity là "mỗi ly" thì đổi thành: ct.getQuantity() *
-    // ci.getQuantity()
-    // mới
     private int toppingAmount(CartItem ci, CartItemTopping ct) {
         return ct.getQuantity();
-    }//
+    }
 
-    // Đánh dấu giỏ đã checkout (status = false)
     private void closeCart(Long customerId) {
         Cart cart = findActiveCart(customerId);
         if (cart != null) {

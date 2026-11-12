@@ -50,12 +50,19 @@ export const CheckoutPage = ({ onNavigate }) => {
           quantity: t.quantity || 1,
         }));
 
+        const sizeExtra = item.size === 'L' ? 10000 : item.size === 'M' ? 5000 : 0;
+        const basePrice = item.baseUnitPrice !== undefined
+          ? item.baseUnitPrice
+          : (Number(item.product?.unitPrice) || 0);
+        const beveragePrice = basePrice + sizeExtra;
+
         await cartApi.addItem({
           customerId,
           item: {
             productId: prodId,
             quantity: item.quantity || 1,
             size: item.size || 'M',
+            unitPrice: beveragePrice,
             note: item.note || '',
             toppings: toppingsPayload,
           },
