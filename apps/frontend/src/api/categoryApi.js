@@ -16,6 +16,13 @@ export const categoryApi = {
   delete(id) {
     return axiosClient.delete(`/api/v1/categories/${id}`);
   },
+  hide(id) {
+    return axiosClient.patch(`/api/v1/categories/${id}/hide`);
+  },
+  show(id) {
+    return axiosClient.patch(`/api/v1/categories/${id}/show`);
+  },
+
 };
 
 export default categoryApi;

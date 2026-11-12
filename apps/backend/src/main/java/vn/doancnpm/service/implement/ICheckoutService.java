@@ -262,7 +262,6 @@ public class ICheckoutService implements CheckoutService {
 
         loyaltyService.redeemPoints(orderId);
         OrderResponse res = orderService.updateStatus(orderId, Order.Status.PAID, null);
-        loyaltyService.earnPoints(orderId); // Tích điểm cho khách khi mua hàng thành công
         closeCart(res.getCustomerId());
         return res;
     }

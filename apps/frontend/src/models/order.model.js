@@ -13,11 +13,9 @@ export const OrderType = {
 };
 
 export const PaymentMethod = {
-  CASH: 'CASH',
-  WALLET: 'WALLET',
-  BANK_TRANSFER: 'BANK_TRANSFER',
-  VNPAY: 'VNPAY',
-  MOMO: 'MOMO',
+  VNPAY: 'VNPay',
+  MOMO: 'Momo',
+  STRIPE: 'Stripe',
 };
 
 export class OrderItemResponse {
@@ -57,7 +55,7 @@ export class OrderResponse {
     orderCode = '',
     orderType = OrderType.DINE_IN,
     tableNumber = '',
-    paymentMethod = PaymentMethod.CASH,
+    paymentMethod = PaymentMethod.VNPAY,
     note = '',
   } = {}) {
     this.id = id;
@@ -86,7 +84,7 @@ export class CheckoutRequest {
     voucherCode = '',
     loyaltyPointsUsed = 0,
     note = '',
-    paymentMethod = PaymentMethod.CASH,
+    paymentMethod = PaymentMethod.VNPAY,
   } = {}) {
     this.customerId = customerId;
     this.orderType = orderType;

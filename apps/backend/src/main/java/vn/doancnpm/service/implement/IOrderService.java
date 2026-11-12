@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import vn.doancnpm.domain.Customer;
 import vn.doancnpm.domain.Order;
 import vn.doancnpm.domain.OrderItem;
 import vn.doancnpm.domain.OrderItemTopping;
+import vn.doancnpm.domain.Payment;
 import vn.doancnpm.dto.Response.AdminOrderResponse;
 import vn.doancnpm.dto.Response.OrderItemResponse;
 import vn.doancnpm.dto.Response.OrderItemToppingResponse;
@@ -28,6 +30,7 @@ import vn.doancnpm.dto.Response.OrderSummaryResponse;
 import vn.doancnpm.dto.Response.PageResponse;
 import vn.doancnpm.repository.CustomerRepository;
 import vn.doancnpm.repository.OrderRepository;
+import vn.doancnpm.repository.PaymentRepository;
 import vn.doancnpm.service.LoyaltyService;
 import vn.doancnpm.service.OrderService;
 import vn.doancnpm.service.ProductInventoryService;
@@ -44,6 +47,9 @@ public class IOrderService implements OrderService {
     private final ProductInventoryService productInventoryService;
     private final ToppingInventoryService toppingInventoryService;
     private final LoyaltyService loyaltyService;
+
+    @Autowired(required = false)
+    private PaymentRepository paymentRepo;
 
     // ===================== Lịch sử đơn (có phân trang) =====================
     @Override
@@ -187,14 +193,46 @@ public class IOrderService implements OrderService {
     }
 
     private AdminOrderResponse mapToAdmin(Order o) {
+        List<OrderItemResponse> itemResponses = (o.getItems() == null)
+                ? Collections.emptyList()
+                : o.getItems().stream().map(this::mapToItemResponse).toList();
+
+        String paymentMethod = null;
+        if (paymentRepo != null && o.getId() != null) {
+            try {
+                List<Payment> payments = paymentRepo.findByOrderIdOrderByCreatedAtDesc(o.getId());
+                if (payments != null && !payments.isEmpty() && payments.get(0).getMethod() != null) {
+                    paymentMethod = payments.get(0).getMethod().name();
+                }
+            } catch (Exception ignored) {}
+        }
+
+        String customerName = "";
+        String phone = "";
+        if (o.getCustomer() != null) {
+            if (o.getCustomer().getUser() != null && o.getCustomer().getUser().getFullName() != null) {
+                customerName = o.getCustomer().getUser().getFullName();
+            } else if (o.getCustomer().getPhone() != null) {
+                customerName = o.getCustomer().getPhone();
+            }
+            if (o.getCustomer().getPhone() != null) {
+                phone = o.getCustomer().getPhone();
+            }
+        }
+
         return AdminOrderResponse.builder()
                 .id(o.getId())
                 .orderCode(o.getOrderCode())
-                .customerName(o.getCustomer().getUser().getFullName()) // đổi theo tên field thật của Customer
-                .phone(o.getCustomer().getPhone()) // đổi theo tên field thật của Customer
+                .customerName(customerName)
+                .phone(phone)
                 .totalAmount(o.getTotalAmount())
                 .status(o.getStatus())
                 .createdAt(o.getCreatedAt())
+                .items(itemResponses)
+                .orderType(o.getOrderType())
+                .tableNumber(o.getTableNumber())
+                .note(o.getNote())
+                .paymentMethod(paymentMethod)
                 .build();
     }
 
@@ -228,15 +266,41 @@ public class IOrderService implements OrderService {
     }
 
     private OrderResponse mapToOrderResponse(Order o) {
+        String paymentMethod = null;
+        if (paymentRepo != null && o.getId() != null) {
+            try {
+                List<Payment> payments = paymentRepo.findByOrderIdOrderByCreatedAtDesc(o.getId());
+                if (payments != null && !payments.isEmpty() && payments.get(0).getMethod() != null) {
+                    paymentMethod = payments.get(0).getMethod().name();
+                }
+            } catch (Exception ignored) {}
+        }
+
+        String customerName = "";
+        String phone = "";
+        if (o.getCustomer() != null) {
+            if (o.getCustomer().getUser() != null && o.getCustomer().getUser().getFullName() != null) {
+                customerName = o.getCustomer().getUser().getFullName();
+            } else if (o.getCustomer().getPhone() != null) {
+                customerName = o.getCustomer().getPhone();
+            }
+            if (o.getCustomer().getPhone() != null) {
+                phone = o.getCustomer().getPhone();
+            }
+        }
+
         return OrderResponse.builder()
                 .id(o.getId())
                 .orderCode(o.getOrderCode())
-                .customerId(o.getCustomer().getId())
+                .customerId(o.getCustomer() != null ? o.getCustomer().getId() : null)
+                .customerName(customerName)
+                .phone(phone)
+                .paymentMethod(paymentMethod)
                 .status(o.getStatus())
                 .orderType(o.getOrderType())
                 .tableNumber(o.getTableNumber())
                 .note(o.getNote())
-                .items(o.getItems().stream().map(this::mapToItemResponse).toList())
+                .items(o.getItems() != null ? o.getItems().stream().map(this::mapToItemResponse).toList() : Collections.emptyList())
                 .subtotal(o.getSubtotal())
                 .discountAmount(o.getDiscountAmount())
                 .loyaltyPointsUsed(o.getLoyaltyPointsUsed())

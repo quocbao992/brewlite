@@ -7,6 +7,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,12 +17,26 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
+import vn.doancnpm.domain.Payment;
+import vn.doancnpm.dto.Request.PaymentNotifyRequest;
+import vn.doancnpm.service.PaymentService;
 
 @RestController
 @RequestMapping("/mock-gateway")
 public class MockGatewayController {
 
     private static final Logger log = LoggerFactory.getLogger(MockGatewayController.class);
+
+    private final PaymentService paymentService;
+
+    @Autowired
+    public MockGatewayController(PaymentService paymentService) {
+        this.paymentService = paymentService;
+    }
+
+    public MockGatewayController() {
+        this.paymentService = null;
+    }
 
     @Value("${mock.gateway.delay-ms:500}")
     private long delayMs;
@@ -48,27 +63,39 @@ public class MockGatewayController {
                 : (ThreadLocalRandom.current().nextDouble() < successRate ? "SUCCESS" : "FAILED");
         String transactionId = "MOCK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
-        Map<String, Object> body = Map.of(
-                "orderId", orderId,
-                "transactionId", transactionId,
-                "status", status,
-                "idempotencyKey", ref,
-                "method", method);
-
-        CompletableFuture.runAsync(() -> {
+        if (paymentService != null) {
             try {
-                restClient.post()
-                        .uri(baseUrl + "/api/v1/payments/notify")
-                        .header("X-Gateway-Secret", secret)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(body)
-                        .retrieve()
-                        .toBodilessEntity();
-                log.info("Mock gateway đã báo order {} = {}", orderId, status);
+                Payment.Method pm = Payment.Method.VNPay;
+                if ("Momo".equalsIgnoreCase(method)) {
+                    pm = Payment.Method.Momo;
+                } else if ("Stripe".equalsIgnoreCase(method)) {
+                    pm = Payment.Method.Stripe;
+                }
+                paymentService.handleNotify(new PaymentNotifyRequest(orderId, transactionId, status, ref, pm));
+                log.info("Mock gateway xu ly order {} = {}", orderId, status);
             } catch (Exception e) {
-                log.error("Mock gateway báo về backend thất bại: {}", e.getMessage());
+                log.error("Mock gateway xu ly that bai: {}", e.getMessage(), e);
             }
-        }, CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS));
+        } else {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    restClient.post()
+                            .uri(baseUrl + "/api/v1/payments/notify")
+                            .header("X-Gateway-Secret", secret)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(Map.of(
+                                    "orderId", orderId,
+                                    "transactionId", transactionId,
+                                    "status", status,
+                                    "idempotencyKey", ref,
+                                    "method", method))
+                            .retrieve()
+                            .toBodilessEntity();
+                } catch (Exception ex) {
+                    log.error("Mock gateway restClient that bai: {}", ex.getMessage());
+                }
+            }, CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS));
+        }
 
         // Nếu mở từ trình duyệt (Accept text/html) thì trả về giao diện thanh toán HTML
         // trực quan

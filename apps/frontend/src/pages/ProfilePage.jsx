@@ -451,6 +451,7 @@ export const ProfilePage = ({ onNavigate }) => {
                   className="form-input"
                   placeholder="Nhập mật khẩu hiện tại"
                   required
+                  data-error-required="Vui lòng nhập mật khẩu hiện tại"
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                 />
@@ -463,6 +464,7 @@ export const ProfilePage = ({ onNavigate }) => {
                   className="form-input"
                   placeholder="Nhập mật khẩu mới"
                   required
+                  data-error-required="Vui lòng nhập mật khẩu mới"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
@@ -475,6 +477,7 @@ export const ProfilePage = ({ onNavigate }) => {
                   className="form-input"
                   placeholder="Nhập lại mật khẩu mới"
                   required
+                  data-error-required="Vui lòng xác nhận lại mật khẩu mới"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
@@ -546,6 +549,7 @@ export const ProfilePage = ({ onNavigate }) => {
                 className="form-input"
                 placeholder="Nhập họ và tên đầy đủ"
                 required
+                data-error-required="Vui lòng nhập họ và tên"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
@@ -558,6 +562,7 @@ export const ProfilePage = ({ onNavigate }) => {
                 className="form-input"
                 placeholder="VD: 0912345678"
                 required
+                data-error-required="Vui lòng nhập số điện thoại"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />

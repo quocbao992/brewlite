@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatService } from '../services/formatService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { resolveProductImage, defaultCoffeeImg } from '../images';
+import { IconAlert, IconClose } from '../components/common/Icons';
 
 export const OrderHistoryPage = ({ onNavigate }) => {
   const { user } = useAuth();
@@ -113,6 +114,9 @@ export const OrderHistoryPage = ({ onNavigate }) => {
 
       const simulatedResult = res?.simulatedResult || res?.status || 'SUCCESS';
       if (simulatedResult === 'SUCCESS') {
+        try {
+          await orderApi.confirmOrder(order.id);
+        } catch {}
         setPaymentMsg('Thanh toán thành công! Trạng thái đơn đã được cập nhật.');
         setTimeout(() => {
           setPaymentModalOrder(null);
@@ -120,6 +124,9 @@ export const OrderHistoryPage = ({ onNavigate }) => {
           loadOrders();
         }, 1200);
       } else {
+        try {
+          await orderApi.cancel(order.id, 'Thanh toán thất bại');
+        } catch {}
         setPaymentMsg('Thanh toán không thành công theo xác suất thử nghiệm. Đơn hàng đã bị hủy.');
         setTimeout(() => {
           setPaymentModalOrder(null);
@@ -478,11 +485,10 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.6rem',
                 margin: '0 auto 16px',
               }}
             >
-              ⚠
+              <IconAlert size={26} color="#dc2626" />
             </div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 8px', color: '#1e293b' }}>
               Xác nhận hủy đơn hàng?
@@ -562,10 +568,12 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                 Chi Tiết Đơn Hàng {selectedOrderDetail.orderCode || `#BL${selectedOrderDetail.id}`}
               </h2>
               <button
+                type="button"
                 onClick={() => setSelectedOrderDetail(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                aria-label="Đóng"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                ✕
+                <IconClose size={20} />
               </button>
             </div>
 

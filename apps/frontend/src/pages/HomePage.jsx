@@ -36,12 +36,17 @@ export const HomePage = ({ onNavigate }) => {
       setLoading(true);
       const res = await productApi.getFeatured();
       const list = Array.isArray(res) ? res : res?.data || res?.content || [];
-      if (list && list.length > 0) {
-        setFeaturedProducts(list);
+      const filterActive = (arr) =>
+        arr.filter(
+          (p) => p.status !== false && p.isAvailable !== false && (!p.category || p.category.status !== false)
+        );
+      const activeList = filterActive(list);
+      if (activeList.length > 0) {
+        setFeaturedProducts(activeList);
       } else {
         const fallbackRes = await productApi.search({ isAvailable: true, size: 8 });
         const fallbackList = fallbackRes?.content || (Array.isArray(fallbackRes) ? fallbackRes : []);
-        setFeaturedProducts(fallbackList);
+        setFeaturedProducts(filterActive(fallbackList));
       }
     } catch (err) {
       console.error('Lỗi khi tải món nổi bật từ CSDL:', err);

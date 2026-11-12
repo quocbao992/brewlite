@@ -11,6 +11,7 @@ import java.time.LocalDate;
 @Builder
 public class UserResponse {
     private Long id;
+    private Long customerId;
     private String username;
     private String fullName;
     private String email;

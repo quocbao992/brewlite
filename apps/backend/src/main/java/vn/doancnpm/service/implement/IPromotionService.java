@@ -37,7 +37,9 @@ public class IPromotionService implements PromotionService {
             throw new IllegalStateException("Mã khuyến mãi đã hết lượt dùng");
         }
         if (p.getMinOrderAmount() != null && subtotal.compareTo(p.getMinOrderAmount()) < 0) {
-            throw new IllegalStateException("Đơn hàng chưa đạt giá trị tối thiểu " + p.getMinOrderAmount() + "đ");
+            java.text.DecimalFormat df = new java.text.DecimalFormat("#,###", new java.text.DecimalFormatSymbols(new java.util.Locale("vi", "VN")));
+            String formattedMin = df.format(p.getMinOrderAmount()) + " đ";
+            throw new IllegalStateException("Đơn hàng chưa đạt giá trị tối thiểu " + formattedMin);
         }
 
         BigDecimal discount = "PERCENT".equalsIgnoreCase(p.getDiscountType())

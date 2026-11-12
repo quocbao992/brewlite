@@ -2,6 +2,7 @@ package vn.doancnpm.dto.Response;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,4 +24,9 @@ public class AdminOrderResponse {
     private BigDecimal totalAmount;
     private Order.Status status;
     private LocalDateTime createdAt;
+    private List<OrderItemResponse> items;
+    private Order.OrderType orderType;
+    private String tableNumber;
+    private String note;
+    private String paymentMethod;
 }

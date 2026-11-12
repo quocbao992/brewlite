@@ -55,6 +55,7 @@ public class ILoyaltyService implements LoyaltyService {
             throw new IllegalArgumentException("Số điểm quy đổi phải lớn hơn 0");
         }
         Customer c = customerRepo.findById(customerId)
+                .or(() -> customerRepo.findByUserId(customerId))
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng"));
         if (c.getLoyaltyP() < points) {
             throw new IllegalStateException("Khách hàng không đủ điểm để quy đổi");

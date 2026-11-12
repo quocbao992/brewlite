@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { formatService } from '../../services/formatService';
 import { resolveProductImage, defaultCoffeeImg } from '../../images';
 import { toppingApi } from '../../api';
+import { IconClose, IconCheck } from './Icons';
 
 // Cache topping trong bộ nhớ để không phải gọi API lặp đi lặp lại
 let cachedToppings = null;
@@ -142,7 +143,9 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
             </span>
           )}
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Đóng"
             style={{
               position: 'absolute',
               top: '12px',
@@ -153,14 +156,13 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               background: 'rgba(0, 0, 0, 0.5)',
               color: '#ffffff',
               border: 'none',
-              fontSize: '1.1rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            ✕
+            <IconClose size={18} color="#ffffff" />
           </button>
         </div>
 
@@ -382,7 +384,10 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
                 alignItems: 'center',
               }}
             >
-              <span>{isSuccess ? '✓ Đã thêm vào giỏ!' : 'Thêm vào giỏ hàng'}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                {isSuccess && <IconCheck size={16} />}
+                {isSuccess ? 'Đã thêm vào giỏ!' : 'Thêm vào giỏ hàng'}
+              </span>
               <span>{formatService.formatMoney(totalPrice)}</span>
             </button>
           </div>

@@ -21,6 +21,11 @@ export const productApi = {
   update(id, data) {
     return axiosClient.put(`/api/v1/products/${id}`, data);
   },
+  updateStatus(id, status) {
+    return axiosClient.patch(`/api/v1/products/${id}/status`, null, {
+      params: { status },
+    });
+  },
   delete(id) {
     return axiosClient.delete(`/api/v1/products/${id}`);
   },

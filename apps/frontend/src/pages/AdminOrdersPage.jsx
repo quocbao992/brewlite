@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { orderApi } from '../api';
 import { formatService } from '../services/formatService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { IconClock, IconCheck, IconClose } from '../components/common/Icons';
 
 export const AdminOrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -97,12 +98,23 @@ export const AdminOrdersPage = () => {
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                  {order.orderType === 'DINE_IN'
-                    ? `Tại bàn: ${order.tableNumber || 'Chưa chọn bàn'}`
-                    : 'Mang đi'}
-                  {' - '}
-                  {formatService.formatDateTime(order.createdAt)}
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                    <span>
+                      <strong>Khách hàng: </strong>
+                      <span style={{ color: 'var(--color-text-main, #1e293b)', fontWeight: 600 }}>
+                        {order.customerName || order.phone || 'Tài khoản thành viên'}
+                      </span>
+                      {order.phone && order.customerName && <span> ({order.phone})</span>}
+                    </span>
+                    <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#e0f2fe', color: '#0369a1', fontSize: '0.78rem', fontWeight: 600 }}>
+                      {formatService.formatPaymentMethod(order.paymentMethod)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+                    <strong>{order.orderType === 'DINE_IN' ? `Tại bàn: ${order.tableNumber || 'Chưa chọn bàn'}` : 'Mang đi'}</strong>
+                    {' • '}{formatService.formatDateTime(order.createdAt)}
+                  </div>
                 </div>
 
                 <div
@@ -113,35 +125,82 @@ export const AdminOrdersPage = () => {
                     fontSize: '0.9rem',
                   }}
                 >
-                  {order.items &&
+                  {Array.isArray(order.items) && order.items.length > 0 ? (
                     order.items.map((it, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
-                        <span>
-                          <strong>{it.quantity}x</strong> {it.productName || it.name} ({it.size})
-                        </span>
+                      <div key={idx} style={{ padding: '3px 0', borderBottom: idx < order.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>
+                            <strong>{it.quantity}x</strong> {it.productName || it.name} {it.size ? `(Size ${it.size})` : ''}
+                          </span>
+                          <span>{formatService.formatCurrency(it.lineTotal || (it.unitPrice * it.quantity) || 0)}</span>
+                        </div>
+                        {Array.isArray(it.toppings) && it.toppings.length > 0 && (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                            + Topping: {it.toppings.map((t) => t.toppingName || t.name || t).join(', ')}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    ))
+                  ) : (
+                    <div style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                      Không có thông tin món chi tiết
+                    </div>
+                  )}
+                  <div style={{ borderTop: '1px solid var(--color-border)', marginTop: '8px', paddingTop: '6px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem' }}>
+                    Tổng đơn: {formatService.formatCurrency(order.totalAmount || 0)}
+                  </div>
                 </div>
 
                 <div style={{ marginTop: 'auto', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    className="btn btn-sm btn-outline"
-                    onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
-                  >
-                    Đang pha chế
-                  </button>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => handleUpdateStatus(order.id, 'READY')}
-                  >
-                    Sẵn sàng giao
-                  </button>
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
-                  >
-                    Hoàn tất
-                  </button>
+                  {order.status === 'PENDING' && (
+                    <div style={{ display: 'flex', width: '100%', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.85rem', color: '#b45309', fontWeight: 600, flex: 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <IconClock size={16} /> Chờ khách thanh toán...
+                      </span>
+                    </div>
+                  )}
+
+                  {order.status === 'PAID' && (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleUpdateStatus(order.id, 'PREPARING')}
+                      style={{ flex: 1, fontWeight: 700 }}
+                    >
+                      Bắt đầu pha chế
+                    </button>
+                  )}
+
+                  {order.status === 'PREPARING' && (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleUpdateStatus(order.id, 'READY')}
+                      style={{ flex: 1, fontWeight: 700, background: '#d97706', borderColor: '#d97706' }}
+                    >
+                      Pha xong (Sẵn sàng giao)
+                    </button>
+                  )}
+
+                  {order.status === 'READY' && (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
+                      style={{ flex: 1, fontWeight: 700, background: '#16a34a', borderColor: '#16a34a' }}
+                    >
+                      Khách đã nhận (Hoàn tất)
+                    </button>
+                  )}
+
+                  {order.status === 'COMPLETED' && (
+                    <div style={{ width: '100%', textAlign: 'center', fontSize: '0.82rem', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <IconCheck size={16} /> Đơn hàng đã hoàn tất
+                    </div>
+                  )}
+
+                  {(order.status === 'CANCELLED' || order.status === 'PAYMENT_FAILED') && (
+                    <div style={{ width: '100%', textAlign: 'center', fontSize: '0.82rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      <IconClose size={16} /> Đơn hàng đã bị hủy / Thanh toán thất bại
+                    </div>
+                  )}
                 </div>
               </div>
             );

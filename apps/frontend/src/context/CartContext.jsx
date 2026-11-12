@@ -24,10 +24,10 @@ export const CartProvider = ({ children }) => {
   }, [cartItems]);
 
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      loadServerCart(user.id);
+    if (isAuthenticated && (user?.customerId || user?.id)) {
+      loadServerCart(user.customerId || user.id);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.customerId, user?.id]);
 
   const loadServerCart = async (customerId) => {
     try {
@@ -84,10 +84,11 @@ export const CartProvider = ({ children }) => {
       return [...prevItems, newItem];
     });
 
-    if (isAuthenticated && user?.id) {
+    const effectiveCustomerId = user?.customerId || user?.id;
+    if (isAuthenticated && effectiveCustomerId) {
       try {
         await cartApi.addItem({
-          customerId: user.id,
+          customerId: effectiveCustomerId,
           item: {
             productId: product.id,
             quantity,
@@ -137,9 +138,10 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     setCartItems([]);
-    if (isAuthenticated && user?.id) {
+    const effectiveCustomerId = user?.customerId || user?.id;
+    if (isAuthenticated && effectiveCustomerId) {
       try {
-        await cartApi.clearCart(user.id);
+        await cartApi.clearCart(effectiveCustomerId);
       } catch {}
     }
   };

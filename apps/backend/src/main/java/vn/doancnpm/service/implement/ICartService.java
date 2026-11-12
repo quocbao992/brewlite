@@ -39,12 +39,19 @@ public class ICartService implements CartService {
   private final ProductRepository productRepo;
   private final ToppingRepository toppingRepo;
 
+  private Customer findCustomer(Long customerId) {
+    if (customerId == null) {
+      throw new IllegalArgumentException("Không tìm thấy khách hàng");
+    }
+    return customerRepo
+        .findById(customerId)
+        .or(() -> customerRepo.findByUserId(customerId))
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng"));
+  }
+
   @Override
   public CartResponse addToCart(CartRequest rq) {
-    Customer customer =
-        customerRepo
-            .findById(rq.getCustomerId())
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng"));
+    Customer customer = findCustomer(rq.getCustomerId());
 
     Cart cart =
         cartRepo
@@ -59,7 +66,13 @@ public class ICartService implements CartService {
     CartItem incomingItem = maptoCartItem(rq);
     incomingItem.setCart(cart);
     incomingItem.setProduct(product);
-    incomingItem.setUnitPrice(product.getUnitPrice());
+    BigDecimal sizeExtra = BigDecimal.ZERO;
+    if (incomingItem.getSize() == CartItem.Size.M) {
+      sizeExtra = BigDecimal.valueOf(5000);
+    } else if (incomingItem.getSize() == CartItem.Size.L) {
+      sizeExtra = BigDecimal.valueOf(10000);
+    }
+    incomingItem.setUnitPrice(product.getUnitPrice().add(sizeExtra));
 
     List<CartItem> existingItems =
         cartItemRepo.findByCartIdAndProductId(cart.getId(), product.getId());
@@ -110,29 +123,20 @@ public class ICartService implements CartService {
 
   @Override
   public void clearCart(Long customerId) {
-    Customer customer =
-        customerRepo
-            .findById(customerId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng"));
+    Customer customer = findCustomer(customerId);
 
-    Cart cart =
-        cartRepo
-            .findByCustomerId(customer.getId())
-            .orElseThrow(
-                () -> new IllegalArgumentException("Không tìm thấy giỏ hàng của khách hàng"));
-
-    List<CartItem> items = cartItemRepo.findByCart(cart);
-    if (!items.isEmpty()) {
-      cartItemRepo.deleteAll(items);
+    Cart cart = cartRepo.findByCustomerId(customer.getId()).orElse(null);
+    if (cart != null) {
+      List<CartItem> items = cartItemRepo.findByCart(cart);
+      if (!items.isEmpty()) {
+        cartItemRepo.deleteAll(items);
+      }
     }
   }
 
   @Override
   public CartResponse getCart(Long customerId) {
-    Customer customer =
-        customerRepo
-            .findById(customerId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng"));
+    Customer customer = findCustomer(customerId);
 
     Cart cart =
         cartRepo
@@ -241,9 +245,15 @@ public class ICartService implements CartService {
       toppingResponses = item.getToppings().stream().map(this::mapToToppingResponse).toList();
     }
 
+    BigDecimal sizeExtra = BigDecimal.ZERO;
+    if (item.getSize() == CartItem.Size.M) {
+      sizeExtra = BigDecimal.valueOf(5000);
+    } else if (item.getSize() == CartItem.Size.L) {
+      sizeExtra = BigDecimal.valueOf(10000);
+    }
     BigDecimal basePrice =
         (item.getProduct().getUnitPrice() != null)
-            ? item.getProduct().getUnitPrice()
+            ? item.getProduct().getUnitPrice().add(sizeExtra)
             : BigDecimal.ZERO;
     BigDecimal singleItemPrice = basePrice.add(toppingTotal);
 

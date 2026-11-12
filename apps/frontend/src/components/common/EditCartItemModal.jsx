@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { formatService } from '../../services/formatService';
 import { resolveProductImage, defaultCoffeeImg } from '../../images';
 import { toppingApi } from '../../api';
+import { IconClose } from './Icons';
 
 let cachedToppings = null;
 
@@ -172,14 +173,15 @@ export const EditCartItemModal = ({ item, isOpen, onClose, onSave }) => {
             style={{
               background: 'transparent',
               border: 'none',
-              fontSize: '1.3rem',
               color: '#94a3b8',
               cursor: 'pointer',
               padding: '4px',
-              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            ✕
+            <IconClose size={20} />
           </button>
         </div>
 

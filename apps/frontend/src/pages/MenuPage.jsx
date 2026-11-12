@@ -41,7 +41,8 @@ export const MenuPage = ({ onNavigate }) => {
     try {
       const res = await categoryApi.getAll();
       const list = Array.isArray(res) ? res : res?.data || [];
-      setCategories(list);
+      const activeList = list.filter((c) => c.status !== false);
+      setCategories(activeList);
     } catch (err) {
       console.error('Lỗi khi tải danh mục từ cơ sở dữ liệu:', err);
       setCategories([]);
@@ -52,7 +53,10 @@ export const MenuPage = ({ onNavigate }) => {
     try {
       const res = await productApi.search({ isAvailable: true, size: 50 });
       const items = res?.content || (Array.isArray(res) ? res : []);
-      setAllProducts(items);
+      const activeItems = items.filter(
+        (p) => p.status !== false && p.isAvailable !== false && (!p.category || p.category.status !== false)
+      );
+      setAllProducts(activeItems);
     } catch (err) {
       console.warn('Lỗi khi tải danh sách gợi ý:', err);
     }
@@ -71,7 +75,10 @@ export const MenuPage = ({ onNavigate }) => {
       });
 
       const items = res?.content || (Array.isArray(res) ? res : []);
-      setProducts(items);
+      const activeItems = items.filter(
+        (p) => p.status !== false && p.isAvailable !== false && (!p.category || p.category.status !== false)
+      );
+      setProducts(activeItems);
       setTotalPages(res?.totalPages || 1);
     } catch (err) {
       console.error('Lỗi khi tải sản phẩm từ cơ sở dữ liệu:', err);

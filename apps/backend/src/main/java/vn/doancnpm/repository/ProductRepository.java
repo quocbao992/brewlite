@@ -24,14 +24,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             select p from Product p
             where (:categoryId is null or p.category.id = :categoryId)
               and (:keyword is null or lower(p.name) like lower(concat('%', cast(:keyword as string), '%')))
-              and (:status is null or p.status = :status)
+              and (:status is null or (p.status = :status and (:status = false or p.category is null or p.category.status = true)))
             """)
     Page<Product> search(@Param("categoryId") Long categoryId,
                          @Param("keyword") String keyword,
                          @Param("status") Boolean status,
                          Pageable pageable);
  
-    List<Product> findByStatusOrderByIdDesc(boolean status, Pageable pageable);
+    @Query("""
+            select p from Product p
+            where p.status = :status and (p.category is null or p.category.status = true)
+            order by p.id desc
+            """)
+    List<Product> findByStatusOrderByIdDesc(@Param("status") boolean status, Pageable pageable);
 
     @Query("""
             select p from Product p

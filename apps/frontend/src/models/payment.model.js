@@ -1,7 +1,7 @@
 export class PaymentRequest {
   constructor({
     orderId = null,
-    paymentMethod = 'CASH',
+    paymentMethod = 'VNPay',
     amount = 0,
   } = {}) {
     this.orderId = orderId;
@@ -14,7 +14,7 @@ export class PaymentResponse {
   constructor({
     id = null,
     orderId = null,
-    paymentMethod = 'CASH',
+    paymentMethod = 'VNPay',
     amount = 0,
     status = 'PENDING',
     transactionId = '',

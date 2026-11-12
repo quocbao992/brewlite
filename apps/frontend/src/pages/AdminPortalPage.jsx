@@ -4,7 +4,7 @@ import { formatService } from '../services/formatService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WeatherWidget from '../components/common/WeatherWidget';
 import { useAuth } from '../context/AuthContext';
-import { IconLock } from '../components/common/Icons';
+import { IconLock, IconClock, IconClose } from '../components/common/Icons';
 
 // Helper trích xuất mảng an toàn tuyệt đối
 const safeExtractArray = (res) => {
@@ -29,6 +29,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   const [products, setProducts] = useState([]);
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('ALL');
+  const [productStatusFilter, setProductStatusFilter] = useState('ALL');
   const [newProduct, setNewProduct] = useState({ name: '', basePrice: '', categoryId: '', isAvailable: true });
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -36,6 +37,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   // 3. Topping 
   const [toppings, setToppings] = useState([]);
   const [toppingSearch, setToppingSearch] = useState('');
+  const [toppingStatusFilter, setToppingStatusFilter] = useState('ALL');
   const [showAddToppingModal, setShowAddToppingModal] = useState(false);
   const [newTopping, setNewTopping] = useState({ name: '', unitPrice: '' });
 
@@ -60,6 +62,8 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   // 5. Danh mục & Người dùng
   const [categories, setCategories] = useState([]);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [productsInCategory,setProductsInCategory] = useState([]);
   const [users, setUsers] = useState([]);
   const [userRoleFilter, setUserRoleFilter] = useState('ALL');
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -248,12 +252,46 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   // ==================== XỬ LÝ SẢN PHẨM ====================
   const handleToggleProduct = async (prod) => {
     try {
-      const updatedStatus = !(prod.isAvailable ?? prod.status);
-      await productApi.update(prod.id, { ...prod, isAvailable: updatedStatus });
+      const currentStatus = (prod.isAvailable ?? prod.status) !== false;
+      const updatedStatus = !currentStatus;
+      await productApi.updateStatus(prod.id, updatedStatus);
       setProducts((prev) => (Array.isArray(prev) ? prev.map((p) => (p.id === prod.id ? { ...p, isAvailable: updatedStatus, status: updatedStatus } : p)) : []));
       showNotification(`Đã ${updatedStatus ? 'bật bán' : 'tạm dừng bán'} ${prod.name}`);
-    } catch {
-      showNotification('Đã cập nhật trạng thái sản phẩm');
+      loadDataForTab('products');
+    } catch (err) {
+      showNotification(err.message || 'Lỗi khi cập nhật trạng thái', 'error');
+    }
+  };
+
+  const handleSaveProductEdit = async (e) => {
+    e.preventDefault();
+    if (!editingProduct || !editingProduct.name.trim()) return;
+    try {
+      const priceNum = parseFloat(editingProduct.unitPrice ?? editingProduct.basePrice);
+      if (isNaN(priceNum) || priceNum <= 0) {
+        showNotification('Giá sản phẩm phải lớn hơn 0', 'error');
+        return;
+      }
+      const payload = {
+        name: editingProduct.name.trim(),
+        categoryId: Number(editingProduct.categoryId),
+        unitPrice: priceNum,
+        basePrice: priceNum,
+        status: editingProduct.status ?? editingProduct.isAvailable ?? true,
+        imgURL: editingProduct.imgURL || '',
+      };
+      await productApi.update(editingProduct.id, payload);
+      const targetCat = safeCategories.find((c) => String(c.id) === String(payload.categoryId));
+      setProducts((prev) =>
+        Array.isArray(prev)
+          ? prev.map((p) => (p.id === editingProduct.id ? { ...p, ...payload, categoryName: targetCat?.name || p.categoryName } : p))
+          : []
+      );
+      showNotification(`Đã cập nhật sản phẩm: ${editingProduct.name}`);
+      setEditingProduct(null);
+      loadDataForTab('products');
+    } catch (err) {
+      showNotification(err.message || 'Lỗi khi cập nhật sản phẩm', 'error');
     }
   };
 
@@ -273,10 +311,13 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
     e.preventDefault();
     if (!newProduct.name || !newProduct.basePrice) return;
     try {
+      const priceNum = parseFloat(newProduct.basePrice);
       await productApi.create({
         name: newProduct.name,
-        basePrice: parseFloat(newProduct.basePrice),
+        basePrice: priceNum,
+        unitPrice: priceNum,
         categoryId: newProduct.categoryId || categories[0]?.id || 1,
+        status: true,
         isAvailable: true,
       });
       showNotification(`Đã thêm sản phẩm: ${newProduct.name}`);
@@ -370,8 +411,12 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   // 1. Thêm số lượng tồn kho (Kho lưu trữ)
   const handleAddWarehouseStock = async (e) => {
     e.preventDefault();
+    if (!selectedInventoryItem) return;
     const amountNum = parseInt(actionAmount, 10);
-    if (!selectedInventoryItem || isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showNotification('Số lượng nhập thêm vào kho phải lớn hơn hoặc bằng 1', 'error');
+      return;
+    }
 
     try {
       await inventoryApi.addWarehouseStock({
@@ -394,8 +439,12 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   // 2. Chuyển từ tồn kho sang đang bán (Trừ tồn kho, cộng đang bán)
   const handleTransferToSelling = async (e) => {
     e.preventDefault();
+    if (!selectedInventoryItem) return;
     const amountNum = parseInt(actionAmount, 10);
-    if (!selectedInventoryItem || isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showNotification('Số lượng đưa ra quầy bán phải lớn hơn hoặc bằng 1', 'error');
+      return;
+    }
 
     if (amountNum > (selectedInventoryItem.warehouseStock || 0)) {
       showNotification(`Số lượng trong Tồn kho không đủ! (Hiện có: ${selectedInventoryItem.warehouseStock || 0})`, 'error');
@@ -421,7 +470,10 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   // ==================== XỬ LÝ DANH MỤC ====================
   const handleAddCategory = async (e) => {
     e.preventDefault();
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName.trim()) {
+      showNotification('Vui lòng nhập tên danh mục mới', 'error');
+      return;
+    }
     try {
       await categoryApi.create({ name: newCategoryName.trim(), displayOrder: categories.length + 1 });
       showNotification(`Đã thêm danh mục: ${newCategoryName}`);
@@ -429,6 +481,40 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
       loadDataForTab('categories');
     } catch (err) {
       showNotification(err.message || 'Lỗi khi tạo danh mục', 'error');
+    }
+  };
+
+  const handleToggleCategoryStatus = async (category) => {
+    try {
+      if(category.status !== false) {
+        await categoryApi.hide(category.id);
+        showNotification(`Đã tạm ẩn danh mục: ${category.name}`);
+      } else {
+        await categoryApi.show(category.id);
+        showNotification(`Đã hiện thị danh mục: ${category.name}`);
+      }
+      loadDataForTab('categories');
+    } catch (err) {
+      showNotification(err.message || 'Lỗi khi cập nhật trạng thái','error');
+    }
+  };
+  const handleOpenDeleteCategory = (category) => {
+    const prods = (products || []).filter(
+      (p) => p.categoryId === category.id || p.category?.id === category.id
+    );
+    setCategoryToDelete(category);
+    setProductsInCategory(prods);
+  };
+  const handleConfirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    try {
+      await categoryApi.delete(categoryToDelete.id);
+      showNotification(`Đã xóa danh mục: ${categoryToDelete.name}`);
+      setCategoryToDelete(null);
+      setProductsInCategory([]);
+      loadDataForTab('categories');
+    } catch (err) {
+      showNotification(err.message || 'Lỗi khi xóa danh mục', 'error');
     }
   };
 
@@ -780,9 +866,23 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                             </span>
                           </div>
 
-                          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                            <strong>{order.orderType === 'DINE_IN' ? `Tại bàn: ${order.tableNumber || 'Chưa gán'}` : 'Mang đi'}</strong>
-                            {' • '}{formatService.formatDateTime(order.createdAt)}
+                          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                              <span>
+                                <strong>Khách hàng: </strong>
+                                <span style={{ color: 'var(--color-text-main, #1e293b)', fontWeight: 600 }}>
+                                  {order.customerName || order.phone || 'Tài khoản thành viên'}
+                                </span>
+                                {order.phone && order.customerName && <span> ({order.phone})</span>}
+                              </span>
+                              <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#e0f2fe', color: '#0369a1', fontSize: '0.78rem', fontWeight: 600 }}>
+                                {formatService.formatPaymentMethod(order.paymentMethod)}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+                              <strong>{order.orderType === 'DINE_IN' ? `Tại bàn: ${order.tableNumber || 'Chưa gán'}` : 'Mang đi'}</strong>
+                              {' • '}{formatService.formatDateTime(order.createdAt)}
+                            </div>
                           </div>
 
                           {order.note && (
@@ -792,19 +892,25 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           )}
 
                           <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', fontSize: '0.88rem' }}>
-                            {Array.isArray(order.items) && order.items.map((it, idx) => (
-                              <div key={idx} style={{ padding: '4px 0', borderBottom: idx < order.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                                  <span>{it.quantity}x {it.productName || it.name} (Size {it.size || 'M'})</span>
-                                  <span>{formatService.formatCurrency(it.lineTotal || it.unitPrice * it.quantity || 0)}</span>
-                                </div>
-                                {Array.isArray(it.toppings) && it.toppings.length > 0 && (
-                                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                                    + Topping: {it.toppings.map((t) => t.toppingName || t.name || t).join(', ')}
+                            {Array.isArray(order.items) && order.items.length > 0 ? (
+                              order.items.map((it, idx) => (
+                                <div key={idx} style={{ padding: '4px 0', borderBottom: idx < order.items.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                                    <span>{it.quantity}x {it.productName || it.name} {it.size ? `(Size ${it.size})` : ''}</span>
+                                    <span>{formatService.formatCurrency(it.lineTotal || (it.unitPrice * it.quantity) || 0)}</span>
                                   </div>
-                                )}
+                                  {Array.isArray(it.toppings) && it.toppings.length > 0 && (
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                                      + Topping: {it.toppings.map((t) => t.toppingName || t.name || t).join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.82rem', padding: '4px 0' }}>
+                                Không có thông tin món chi tiết
                               </div>
-                            ))}
+                            )}
                             <div style={{ borderTop: '1px solid var(--color-border)', marginTop: '8px', paddingTop: '6px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem' }}>
                               Tổng đơn: {formatService.formatCurrency(order.totalAmount || 0)}
                             </div>
@@ -813,24 +919,19 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           {/* KHỐI HÀNH ĐỘNG CỦA BARISTA THEO TỪNG TRẠNG THÁI */}
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: 'auto', paddingTop: '8px' }}>
                             {isPending && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-primary"
-                                  onClick={() => handleUpdateOrderStatus(order.id, 'PREPARING', 'PENDING')}
-                                  style={{ flex: 1, padding: '8px', fontWeight: 700 }}
-                                >
-                                  Duyệt và pha chế
-                                </button>
+                              <div style={{ display: 'flex', width: '100%', gap: '8px', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.82rem', color: '#b45309', fontWeight: 600, flex: 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  <IconClock size={16} /> Chờ khách thanh toán qua cổng...
+                                </span>
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-secondary"
                                   onClick={() => handleCancelOrder(order.id)}
-                                  style={{ color: '#ef4444', padding: '8px' }}
+                                  style={{ color: '#ef4444', padding: '6px 12px' }}
                                 >
-                                  Hủy
+                                  Hủy đơn
                                 </button>
-                              </>
+                              </div>
                             )}
 
                             {isPaid && (
@@ -896,7 +997,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                     placeholder="Tìm kiếm tên sản phẩm..."
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', minWidth: '240px', outline: 'none' }}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', minWidth: '220px', outline: 'none' }}
                   />
                   <select
                     value={productCategoryFilter}
@@ -907,6 +1008,15 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                     {safeCategories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
+                  </select>
+                  <select
+                    value={productStatusFilter}
+                    onChange={(e) => setProductStatusFilter(e.target.value)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', outline: 'none' }}
+                  >
+                    <option value="ALL">Tất cả trạng thái</option>
+                    <option value="ACTIVE">Đang bán</option>
+                    <option value="HIDDEN">Tạm ẩn</option>
                   </select>
                 </div>
                 <button
@@ -935,6 +1045,12 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                     {safeProducts
                       .filter((p) => p.name?.toLowerCase().includes(productSearch.toLowerCase()))
                       .filter((p) => productCategoryFilter === 'ALL' || String(p.categoryId) === String(productCategoryFilter))
+                      .filter((p) => {
+                        const isAct = (p.isAvailable ?? p.status) !== false;
+                        if (productStatusFilter === 'ACTIVE') return isAct;
+                        if (productStatusFilter === 'HIDDEN') return !isAct;
+                        return true;
+                      })
                       .map((prod) => (
                         <tr key={prod.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '12px 16px', color: '#64748b' }}>#{prod.id}</td>
@@ -963,14 +1079,34 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                               {(prod.isAvailable ?? prod.status) ? 'Đang bán' : 'Tạm ẩn'}
                             </span>
                           </td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                            <button
-                              className="btn btn-sm btn-outline"
-                              onClick={() => handleToggleProduct(prod)}
-                              style={{ padding: '4px 10px', borderRadius: '6px' }}
-                            >
-                              {(prod.isAvailable ?? prod.status) ? 'Tạm ẩn' : 'Bật bán'}
-                            </button>
+                          <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-secondary"
+                                onClick={() =>
+                                  setEditingProduct({
+                                    id: prod.id,
+                                    name: prod.name,
+                                    categoryId: prod.categoryId || prod.category?.id || safeCategories[0]?.id || 1,
+                                    unitPrice: prod.unitPrice || prod.basePrice || 0,
+                                    status: prod.status ?? prod.isAvailable ?? true,
+                                    imgURL: prod.imgURL || '',
+                                  })
+                                }
+                                style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem' }}
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline"
+                                onClick={() => handleToggleProduct(prod)}
+                                style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '0.8rem' }}
+                              >
+                                {(prod.isAvailable ?? prod.status) ? 'Tạm ẩn' : 'Bật bán'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -989,6 +1125,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         <input
                           type="text"
                           required
+                          data-error-required="Vui lòng nhập tên món mới"
                           value={newProduct.name}
                           onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
@@ -1000,6 +1137,9 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         <input
                           type="number"
                           required
+                          min="1"
+                          data-error-required="Vui lòng nhập giá bán món mới"
+                          data-error-min="Giá bán phải lớn hơn 0"
                           value={newProduct.basePrice}
                           onChange={(e) => setNewProduct({ ...newProduct, basePrice: e.target.value })}
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
@@ -1026,6 +1166,57 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                   </div>
                 </div>
               )}
+
+              {/* Modal Chỉnh Sửa Sản Phẩm */}
+              {editingProduct && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: '420px', maxWidth: '90%', border: '1px solid var(--color-border)' }}>
+                    <h3 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Chỉnh Sửa Sản Phẩm</h3>
+                    <form onSubmit={handleSaveProductEdit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Tên sản phẩm *</label>
+                        <input
+                          type="text"
+                          required
+                          data-error-required="Vui lòng nhập tên sản phẩm"
+                          value={editingProduct.name}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                          style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Danh mục *</label>
+                        <select
+                          value={editingProduct.categoryId}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, categoryId: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                        >
+                          {safeCategories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>Giá bán (VNĐ) *</label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          data-error-required="Vui lòng nhập giá bán sản phẩm"
+                          data-error-min="Giá bán phải lớn hơn 0"
+                          value={editingProduct.unitPrice}
+                          onChange={(e) => setEditingProduct({ ...editingProduct, unitPrice: e.target.value })}
+                          style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                        <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '8px' }}>Lưu thay đổi</button>
+                        <button type="button" className="btn btn-secondary" onClick={() => setEditingProduct(null)} style={{ flex: 1, padding: '8px' }}>Hủy</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1033,13 +1224,24 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
           {activeTab === 'toppings' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm tên Topping..."
-                  value={toppingSearch}
-                  onChange={(e) => setToppingSearch(e.target.value)}
-                  style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', width: '300px', outline: 'none' }}
-                />
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm tên Topping..."
+                    value={toppingSearch}
+                    onChange={(e) => setToppingSearch(e.target.value)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', width: '280px', outline: 'none' }}
+                  />
+                  <select
+                    value={toppingStatusFilter}
+                    onChange={(e) => setToppingStatusFilter(e.target.value)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', outline: 'none' }}
+                  >
+                    <option value="ALL">Tất cả trạng thái</option>
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="HIDDEN">Đang tạm ẩn</option>
+                  </select>
+                </div>
                 <button
                   className="btn btn-primary"
                   onClick={() => setShowAddToppingModal(true)}
@@ -1071,6 +1273,12 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                     ) : (
                       safeToppings
                         .filter((t) => t.name?.toLowerCase().includes(toppingSearch.toLowerCase()))
+                        .filter((t) => {
+                          const isAct = t.status !== false;
+                          if (toppingStatusFilter === 'ACTIVE') return isAct;
+                          if (toppingStatusFilter === 'HIDDEN') return !isAct;
+                          return true;
+                        })
                         .map((tp) => (
                           <tr key={tp.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                             <td style={{ padding: '12px 16px', color: '#64748b' }}>#{tp.id}</td>
@@ -1162,6 +1370,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         <input
                           type="text"
                           required
+                          data-error-required="Vui lòng nhập tên Topping"
                           value={newTopping.name}
                           onChange={(e) => setNewTopping({ ...newTopping, name: e.target.value })}
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
@@ -1173,6 +1382,9 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         <input
                           type="number"
                           required
+                          min="1"
+                          data-error-required="Vui lòng nhập đơn giá bán Topping"
+                          data-error-min="Đơn giá Topping phải lớn hơn 0"
                           value={newTopping.unitPrice}
                           onChange={(e) => setNewTopping({ ...newTopping, unitPrice: e.target.value })}
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
@@ -1361,17 +1573,17 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                                   background: log.changeType?.includes('HOÀN') || log.changeType?.includes('HỦY')
                                     ? '#fef3c7'
                                     : log.changeType?.includes('CHUYỂN')
-                                    ? '#eff6ff'
-                                    : log.changeType?.includes('NHẬP')
-                                    ? '#f0fdf4'
-                                    : '#fef2f2',
+                                      ? '#eff6ff'
+                                      : log.changeType?.includes('NHẬP')
+                                        ? '#f0fdf4'
+                                        : '#fef2f2',
                                   color: log.changeType?.includes('HOÀN') || log.changeType?.includes('HỦY')
                                     ? '#b45309'
                                     : log.changeType?.includes('CHUYỂN')
-                                    ? '#1d4ed8'
-                                    : log.changeType?.includes('NHẬP')
-                                    ? '#15803d'
-                                    : '#b91c1c',
+                                      ? '#1d4ed8'
+                                      : log.changeType?.includes('NHẬP')
+                                        ? '#15803d'
+                                        : '#b91c1c',
                                 }}
                               >
                                 {log.changeType || 'BIẾN ĐỘNG KHO'}
@@ -1409,6 +1621,8 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           type="number"
                           required
                           min="1"
+                          data-error-required="Vui lòng nhập số lượng nhập thêm"
+                          data-error-min="Số lượng nhập thêm tối thiểu là 1"
                           value={actionAmount}
                           onChange={(e) => setActionAmount(e.target.value)}
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
@@ -1456,6 +1670,9 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           type="number"
                           required
                           min="1"
+                          data-error-required="Vui lòng nhập số lượng đưa ra quầy bán"
+                          data-error-min="Số lượng đưa ra quầy bán tối thiểu là 1"
+                          data-error-max={`Số lượng đưa ra quầy bán tối đa là ${selectedInventoryItem.warehouseStock || 1}`}
                           max={selectedInventoryItem.warehouseStock || 1}
                           value={actionAmount}
                           onChange={(e) => setActionAmount(e.target.value)}
@@ -1510,20 +1727,21 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           value={quickAddSelectedId}
                           onChange={(e) => setQuickAddSelectedId(e.target.value)}
                           required
+                          data-error-required="Vui lòng chọn một mặt hàng trong danh sách"
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
                         >
                           <option value="">-- Chọn mặt hàng --</option>
                           {quickAddItemType === 'PRODUCT'
                             ? safeProducts.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  #{p.id} - {p.name}
-                                </option>
-                              ))
+                              <option key={p.id} value={p.id}>
+                                #{p.id} - {p.name}
+                              </option>
+                            ))
                             : safeToppings.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  #{t.id} - {t.name}
-                                </option>
-                              ))}
+                              <option key={t.id} value={t.id}>
+                                #{t.id} - {t.name}
+                              </option>
+                            ))}
                         </select>
                       </div>
 
@@ -1533,6 +1751,8 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           type="number"
                           required
                           min="1"
+                          data-error-required="Vui lòng nhập số lượng nhập thêm"
+                          data-error-min="Số lượng nhập thêm tối thiểu là 1"
                           value={quickAddAmount}
                           onChange={(e) => setQuickAddAmount(e.target.value)}
                           style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--color-border)' }}
@@ -1761,6 +1981,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         <input
                           type="text"
                           required
+                          data-error-required="Vui lòng nhập mã khuyến mãi (Voucher Code)"
                           value={promotionForm.code}
                           onChange={(e) => setPromotionForm({ ...promotionForm, code: e.target.value.toUpperCase() })}
                           placeholder="Ví dụ: GIAM20K, CHAOMUNG, SUMMER10"
@@ -1804,6 +2025,8 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                             type="number"
                             required
                             min="1"
+                            data-error-required="Vui lòng nhập giá trị giảm"
+                            data-error-min="Giá trị giảm tối thiểu là 1"
                             value={promotionForm.discountValue}
                             onChange={(e) => setPromotionForm({ ...promotionForm, discountValue: e.target.value })}
                             placeholder={promotionForm.discountType === 'PERCENT' ? 'Ví dụ: 15 (tức 15%)' : 'Ví dụ: 20000'}
@@ -1926,6 +2149,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
               <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '12px', background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
                 <input
                   type="text"
+                  required
                   placeholder="Nhập tên danh mục mới..."
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
@@ -1943,6 +2167,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                       <th style={{ padding: '12px 16px' }}>Thứ tự</th>
                       <th style={{ padding: '12px 16px' }}>Tên Danh Mục</th>
                       <th style={{ padding: '12px 16px' }}>Trạng Thái</th>
+                      <th style={{ padding: '12px 16px' }}>Thao Tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1951,15 +2176,134 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         <td style={{ padding: '12px 16px', color: '#64748b' }}>#{c.displayOrder || i + 1}</td>
                         <td style={{ padding: '12px 16px', fontWeight: 600 }}>{c.name}</td>
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '0.8rem', background: '#f0fdf4', color: '#166534' }}>
-                            Đang hiển thị
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            display: 'inline-block',
+                            background: c.status !== false ? '#f0fdf4' : '#fef2f2',
+                            color: c.status !== false ? '#166534' : '#991b1b'
+                          }}>
+                            {c.status !== false ? 'Đang hiển thị' : 'Đang tạm ẩn'}
                           </span>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline"
+                              onClick={() => handleToggleCategoryStatus(c)}
+                              style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '0.8rem' }}
+                            >
+                              {c.status !== false ? 'Tạm ẩn' : 'Hiện'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDeleteCategory(c)}
+                              style={{
+                                padding: '4px 12px',
+                                borderRadius: '6px',
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                border: '1px solid #fecaca',
+                                background: '#fef2f2',
+                                color: '#dc2626',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {/* MODAL POPUP XÁC NHẬN XÓA DANH MỤC */}
+              {categoryToDelete && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                  }}
+                  onClick={() => setCategoryToDelete(null)}
+                >
+                  <div
+                    style={{
+                      background: '#fff',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      maxWidth: '460px',
+                      width: '100%',
+                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 style={{ margin: '0 0 12px', fontSize: '1.2rem', color: '#1e293b' }}>
+                      Xác nhận xóa danh mục
+                    </h3>
+
+                    {productsInCategory.length > 0 ? (
+                      <div>
+                        <p style={{ color: '#dc2626', fontWeight: 600, margin: '0 0 8px' }}>
+                          Danh mục "{categoryToDelete.name}" vẫn còn các sản phẩm:
+                        </p>
+                        <div style={{ maxHeight: '160px', overflowY: 'auto', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '14px' }}>
+                          {productsInCategory.map((prod) => (
+                            <div key={prod.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '0.85rem' }}>
+                              <span style={{ fontWeight: 500 }}>• {prod.name}</span>
+                              <span style={{ color: '#64748b' }}>Số lượng: <strong>{prod.stock ?? 0}</strong></span>
+                            </div>
+                          ))}
+                        </div>
+                        <p style={{ fontSize: '0.9rem', color: '#475569', margin: '0 0 16px' }}>
+                          Bạn có chắc chắn muốn xóa không? <em>(Lưu ý: Backend sẽ chặn xóa nếu còn sản phẩm, bạn nên ẩn danh mục hoặc chuyển sản phẩm sang danh mục khác).</em>
+                        </p>
+                      </div>
+                    ) : (
+                      <p style={{ color: '#475569', fontSize: '0.95rem', margin: '0 0 20px' }}>
+                        Bạn có chắc chắn muốn xóa danh mục <strong>"{categoryToDelete.name}"</strong>? Thao tác này không thể hoàn tác.
+                      </p>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setCategoryToDelete(null)}
+                        style={{ padding: '8px 18px', borderRadius: '8px' }}
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmDeleteCategory}
+                        style={{
+                          padding: '8px 18px',
+                          borderRadius: '8px',
+                          background: '#dc2626',
+                          color: '#fff',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {productsInCategory.length > 0 ? 'Vẫn muốn xóa' : 'Xác nhận xóa'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2036,15 +2380,14 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                                   type="button"
                                   onClick={() => setUserToLock(u)}
                                   style={{
-                                    padding: '5px 12px',
+                                    padding: '4px 12px',
                                     borderRadius: '6px',
-                                    background: '#dc2626',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    fontWeight: 700,
                                     fontSize: '0.8rem',
+                                    fontWeight: 500,
+                                    border: '1px solid #fecaca',
+                                    background: '#fef2f2',
+                                    color: '#dc2626',
                                     cursor: 'pointer',
-                                    boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
                                   }}
                                 >
                                   Khóa
@@ -2188,9 +2531,10 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                       <button
                         type="button"
                         onClick={() => setShowCreateUserModal(false)}
-                        style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+                        aria-label="Đóng"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        ✕
+                        <IconClose size={20} />
                       </button>
                     </div>
 
@@ -2203,6 +2547,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           <input
                             type="text"
                             required
+                            data-error-required="Vui lòng nhập tên đăng nhập (Username)"
                             placeholder="VD: barista_nam"
                             value={newUserForm.username}
                             onChange={(e) => setNewUserForm({ ...newUserForm, username: e.target.value })}
@@ -2217,6 +2562,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           <input
                             type="password"
                             required
+                            data-error-required="Vui lòng nhập mật khẩu khởi tạo"
                             placeholder="Mật khẩu tối thiểu 8 ký tự"
                             value={newUserForm.password}
                             onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
@@ -2233,6 +2579,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           <input
                             type="text"
                             required
+                            data-error-required="Vui lòng nhập họ và tên"
                             placeholder="VD: Nguyễn Văn Nam"
                             value={newUserForm.fullName}
                             onChange={(e) => setNewUserForm({ ...newUserForm, fullName: e.target.value })}
@@ -2265,6 +2612,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                           <input
                             type="email"
                             required
+                            data-error-required="Vui lòng nhập địa chỉ email"
                             placeholder="nam@brewlite.vn"
                             value={newUserForm.email}
                             onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}

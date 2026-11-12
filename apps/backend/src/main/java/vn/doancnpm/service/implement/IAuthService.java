@@ -99,6 +99,7 @@ public class IAuthService implements AuthService {
         Customer customer = customerRepository.findByUserId(user.getId()).orElse(null);
         return UserResponse.builder()
                 .id(user.getId())
+                .customerId(customer != null ? customer.getId() : user.getId())
                 .username(user.getUsername())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
@@ -138,7 +139,7 @@ public class IAuthService implements AuthService {
         }
 
         if(!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new BadCredentialsException("Tên đăng nhặp hoặc mật khẩu không chính xác");
+            throw new BadCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác");
         }
 
         String accessToken = jwtUtils.generateToken(user.getUsername());

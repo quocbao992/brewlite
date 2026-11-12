@@ -33,7 +33,9 @@ public class ICustomerService implements CustomerService {
 
     @Override 
     public CustomerResponse getMyProfile(Long userId) {
-        Customer customer = customerRepository.findByUserId(userId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy"));
+        Customer customer = customerRepository.findByUserId(userId)
+                .or(() -> customerRepository.findById(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy"));
         return convertToResponse(customer);
     }
 
@@ -64,7 +66,9 @@ public class ICustomerService implements CustomerService {
     
     @Override
     public float getMyLoyalPoint(Long userId) {
-        Customer customer = customerRepository.findById(userId).orElse(null);
+        Customer customer = customerRepository.findByUserId(userId)
+                .or(() -> customerRepository.findById(userId))
+                .orElse(null);
         
         if(customer == null) {
             throw new IllegalArgumentException("Không tìm thấy khách hàng");

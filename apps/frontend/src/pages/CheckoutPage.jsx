@@ -5,7 +5,7 @@ import { orderApi, paymentApi, cartApi, axiosClient } from '../api';
 import { OrderType } from '../models/order.model';
 import { formatService } from '../services/formatService';
 import InteractiveButton from '../components/common/InteractiveButton';
-import { IconArrowLeft } from '../components/common/Icons';
+import { IconArrowLeft, IconCheck, IconClose } from '../components/common/Icons';
 import ChiikawaMascot from '../components/common/ChiikawaMascot';
 
 export const CheckoutPage = ({ onNavigate }) => {
@@ -68,9 +68,10 @@ export const CheckoutPage = ({ onNavigate }) => {
 
   // Tải thông tin điểm thưởng tích lũy của khách hàng
   useEffect(() => {
-    const customerId = user?.id || 1;
+    const customerId = user?.customerId || user?.id || 1;
+    const targetUserId = user?.id || customerId;
     axiosClient
-      .get(`/api/v1/customers/profile?userId=${customerId}`)
+      .get(`/api/v1/customers/profile?userId=${targetUserId}`)
       .then((res) => {
         const pts = res?.loyaltyPoints ?? res?.loyaltyPoint ?? 0;
         setAvailableLoyaltyPoints(pts);
@@ -138,7 +139,11 @@ export const CheckoutPage = ({ onNavigate }) => {
       setDiscountAmount(0);
       setVoucherDetail(null);
       setVoucherSuccess('');
-      const msg = err.response?.data?.message || err.message || 'Mã ưu đãi không hợp lệ hoặc chưa đủ điều kiện';
+      let msg = err.response?.data?.message || err.message || 'Mã ưu đãi không hợp lệ hoặc chưa đủ điều kiện';
+      msg = msg.replace(/\b(\d{4,}(?:\.\d+)?)\s*đ?/gi, (_, rawNum) => {
+        const num = parseFloat(rawNum);
+        return isNaN(num) ? rawNum : formatService.formatMoney(num);
+      });
       setVoucherError(msg);
     } finally {
       setValidatingVoucher(false);
@@ -187,7 +192,7 @@ export const CheckoutPage = ({ onNavigate }) => {
     setLoading(true);
 
     try {
-      const customerId = user?.id || 1;
+      const customerId = user?.customerId || user?.id || 1;
 
       // 1. Đồng bộ dữ liệu giỏ hàng lên Backend để đảm bảo có giỏ hàng đang dùng
       await syncCartToServer(customerId);
@@ -265,11 +270,19 @@ export const CheckoutPage = ({ onNavigate }) => {
       const simulatedResult = res?.simulatedResult || res?.status || 'SUCCESS';
 
       if (simulatedResult === 'SUCCESS') {
+        try {
+          await orderApi.confirmOrder(paymentData.orderId);
+        } catch {}
         setPaymentSuccess(true);
         setPaymentData((prev) => (prev ? { ...prev, status: 'PAID' } : null));
+        setCreatedOrder((prev) => (prev ? { ...prev, status: 'PAID' } : null));
       } else {
         setPaymentSuccess(false);
         setPaymentData((prev) => (prev ? { ...prev, status: 'FAILED' } : null));
+        setCreatedOrder((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
+        try {
+          await orderApi.cancel(paymentData.orderId, 'Thanh toán thất bại');
+        } catch {}
         setErrorMsg('Giao dịch thanh toán không thành công (Cổng thanh toán phản hồi: Thất bại / Thẻ không đủ số dư theo tỷ lệ giả lập 40%). Đơn hàng đã bị hủy.');
       }
     } catch (err) {
@@ -612,6 +625,7 @@ export const CheckoutPage = ({ onNavigate }) => {
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
                 required
+                data-error-required="Vui lòng nhập số bàn của bạn"
               />
             </div>
           )}
@@ -684,13 +698,15 @@ export const CheckoutPage = ({ onNavigate }) => {
               </button>
             </div>
             {voucherSuccess && (
-              <div style={{ color: '#16a34a', fontSize: '0.84rem', marginTop: '6px', fontWeight: 600 }}>
-                ✓ {voucherSuccess}
+              <div style={{ color: '#16a34a', fontSize: '0.84rem', marginTop: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <IconCheck size={16} />
+                <span>{voucherSuccess}</span>
               </div>
             )}
             {voucherError && (
-              <div style={{ color: '#dc2626', fontSize: '0.84rem', marginTop: '6px' }}>
-                ✕ {voucherError}
+              <div style={{ color: '#dc2626', fontSize: '0.84rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <IconClose size={16} />
+                <span>{voucherError}</span>
               </div>
             )}
           </div>
