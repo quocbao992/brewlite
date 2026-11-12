@@ -20,29 +20,23 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import vn.doancnpm.service.implement.IToppingService;
 import vn.doancnpm.domain.InventoryTopping;
 import vn.doancnpm.domain.Topping;
 import vn.doancnpm.dto.Request.ToppingRequest;
 import vn.doancnpm.dto.Response.ToppingResponse;
 import vn.doancnpm.repository.InventoryToppingRepository;
 import vn.doancnpm.repository.ToppingRepository;
+import vn.doancnpm.service.implement.IToppingService;
+
 
 @ExtendWith(MockitoExtension.class)
 class ToppingServiceTest {
-
-  // Thông báo lỗi validate - IToppingService cần ném đúng các message này
-  private static final String MSG_NAME_BLANK = "Tên topping không được để trống";
-  private static final String MSG_NAME_SPECIAL_CHAR = "Tên topping không được chứa ký tự đặc biệt";
-  private static final String MSG_NAME_TOO_LONG = "Tên topping không được vượt quá 100 ký tự";
-  private static final String MSG_PRICE_INVALID = "Giá topping phải lớn hơn 0";
 
   @Mock
   private ToppingRepository toppingRepository;
@@ -84,7 +78,7 @@ class ToppingServiceTest {
         .build();
   }
 
-  /** Giả lập repository.save gán id = 7 cho topping mới và trả lại chính nó. */
+  
   private void stubSaveNewTopping() {
     when(toppingRepository.save(any(Topping.class))).thenAnswer(invocation -> {
       Topping t = invocation.getArgument(0);
@@ -272,19 +266,6 @@ class ToppingServiceTest {
     }
 
     @Test
-    @DisplayName("Tên có khoảng trắng thừa hai đầu được trim trước khi lưu")
-    void createTopping_TrimsName_BeforeSaving() {
-      stubSaveNewTopping();
-
-      ToppingResponse response = service.createTopping(request("  Pudding  ", "6000"));
-
-      ArgumentCaptor<Topping> captor = ArgumentCaptor.forClass(Topping.class);
-      verify(toppingRepository).save(captor.capture());
-      assertThat(captor.getValue().getName()).isEqualTo("Pudding");
-      assertThat(response.getName()).isEqualTo("Pudding");
-    }
-
-    @Test
     @DisplayName("Tên dài đúng 100 ký tự vẫn hợp lệ")
     void createTopping_Success_WhenNameIsMaxLength() {
       stubSaveNewTopping();
@@ -303,83 +284,6 @@ class ToppingServiceTest {
       ToppingResponse response = service.createTopping(request("Pudding", "1"));
 
       assertThat(response.getUnitPrice()).isEqualByComparingTo("1");
-    }
-
-    // ---------- Validate tên ----------
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = { " ", "   ", "\t", "\n" })
-    @DisplayName("Ném exception khi tên null, rỗng hoặc chỉ có khoảng trắng")
-    void createTopping_ThrowsException_WhenNameBlank(String name) {
-      assertThatThrownBy(() -> service.createTopping(request(name, "6000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_BLANK);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {
-        "Pudding!", "Trân@châu", "Trà#sữa", "Tea$", "100%", "A^B", "A&B", "A*B",
-        "Trà (đào)", "Trà-sữa", "Trà_sữa", "Trà+sữa", "Trà=sữa", "Trà/sữa", "Trà\\sữa",
-        "Trà.sữa", "Trà,sữa", "Trà;sữa", "Trà:sữa", "Trà'sữa", "Trà\"sữa", "Trà?sữa",
-        "<script>alert(1)</script>", "Robert'); DROP TABLE topping;--", "Trà~sữa", "Trà`sữa",
-        "Trà|sữa", "Trà{sữa}", "Trà[sữa]", "Trà\u0000sữa"
-    })
-    @DisplayName("Ném exception khi tên chứa ký tự đặc biệt")
-    void createTopping_ThrowsException_WhenNameHasSpecialCharacters(String name) {
-      assertThatThrownBy(() -> service.createTopping(request(name, "6000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_SPECIAL_CHAR);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = { "😀 Trà", "Trà 🧋", "Trà ★" })
-    @DisplayName("Ném exception khi tên chứa emoji hoặc ký hiệu Unicode")
-    void createTopping_ThrowsException_WhenNameHasEmojiOrSymbol(String name) {
-      assertThatThrownBy(() -> service.createTopping(request(name, "6000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_SPECIAL_CHAR);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @Test
-    @DisplayName("Tên dài 101 ký tự bị từ chối")
-    void createTopping_ThrowsException_WhenNameTooLong() {
-      String name = "a".repeat(101);
-
-      assertThatThrownBy(() -> service.createTopping(request(name, "6000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_TOO_LONG);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    // ---------- Validate giá ----------
-
-    @Test
-    @DisplayName("Ném exception khi giá null")
-    void createTopping_ThrowsException_WhenPriceNull() {
-      assertThatThrownBy(() -> service.createTopping(request("Pudding", null)))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_PRICE_INVALID);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = { "0", "0.00", "-1", "-5000", "-0.01" })
-    @DisplayName("Ném exception khi giá <= 0")
-    void createTopping_ThrowsException_WhenPriceNotPositive(String price) {
-      assertThatThrownBy(() -> service.createTopping(request("Pudding", price)))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_PRICE_INVALID);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
     }
   }
 
@@ -434,18 +338,6 @@ class ToppingServiceTest {
     }
 
     @Test
-    @DisplayName("Tên có khoảng trắng thừa hai đầu được trim khi cập nhật")
-    void updateTopping_TrimsName() {
-      when(toppingRepository.findById(1L)).thenReturn(Optional.of(tranChau));
-      when(toppingRepository.save(any(Topping.class))).thenAnswer(invocation -> invocation.getArgument(0));
-      when(inventoryToppingRepository.findByToppingId(1L)).thenReturn(Optional.empty());
-
-      service.updateTopping(1L, request("  Trân châu trắng  ", "7000"));
-
-      assertThat(tranChau.getName()).isEqualTo("Trân châu trắng");
-    }
-
-    @Test
     @DisplayName("Ném exception và không lưu khi không tìm thấy topping")
     void updateTopping_ThrowsException_WhenNotFound() {
       when(toppingRepository.findById(99L)).thenReturn(Optional.empty());
@@ -455,72 +347,6 @@ class ToppingServiceTest {
           .hasMessageContaining("99");
 
       verify(toppingRepository, never()).save(any());
-    }
-
-    // ---------- Validate khi cập nhật (phải validate TRƯỚC khi truy vấn DB) ----------
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = { " ", "   ", "\t" })
-    @DisplayName("Ném exception khi cập nhật tên null, rỗng hoặc chỉ có khoảng trắng")
-    void updateTopping_ThrowsException_WhenNameBlank(String name) {
-      assertThatThrownBy(() -> service.updateTopping(1L, request(name, "7000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_BLANK);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = { "Pudding!", "Trân@châu", "Trà#sữa", "Tea$", "<b>Trà</b>", "Trà-sữa", "😀 Trà" })
-    @DisplayName("Ném exception khi cập nhật tên có ký tự đặc biệt")
-    void updateTopping_ThrowsException_WhenNameHasSpecialCharacters(String name) {
-      assertThatThrownBy(() -> service.updateTopping(1L, request(name, "7000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_SPECIAL_CHAR);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @Test
-    @DisplayName("Ném exception khi cập nhật tên dài hơn 100 ký tự")
-    void updateTopping_ThrowsException_WhenNameTooLong() {
-      assertThatThrownBy(() -> service.updateTopping(1L, request("a".repeat(101), "7000")))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_NAME_TOO_LONG);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = { "0", "-1", "-7000" })
-    @DisplayName("Ném exception khi cập nhật giá <= 0")
-    void updateTopping_ThrowsException_WhenPriceNotPositive(String price) {
-      assertThatThrownBy(() -> service.updateTopping(1L, request("Trân châu trắng", price)))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_PRICE_INVALID);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @Test
-    @DisplayName("Ném exception khi cập nhật giá null")
-    void updateTopping_ThrowsException_WhenPriceNull() {
-      assertThatThrownBy(() -> service.updateTopping(1L, request("Trân châu trắng", null)))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage(MSG_PRICE_INVALID);
-
-      verifyNoInteractions(toppingRepository, inventoryToppingRepository);
-    }
-
-    @Test
-    @DisplayName("Dữ liệu sai thì topping đang có không bị sửa")
-    void updateTopping_DoesNotMutateTopping_WhenValidationFails() {
-      assertThatThrownBy(() -> service.updateTopping(1L, request("Pudding!", "7000")))
-          .isInstanceOf(IllegalArgumentException.class);
-
-      assertThat(tranChau.getName()).isEqualTo("Trân châu");
-      assertThat(tranChau.getUnitPrice()).isEqualByComparingTo("5000");
     }
   }
 

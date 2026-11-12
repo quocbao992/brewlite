@@ -30,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import jakarta.persistence.EntityNotFoundException;
-import vn.doancnpm.service.implement.IProductInventoryService;
 import vn.doancnpm.domain.InventoryLog.ChangeType;
 import vn.doancnpm.domain.InventoryProduct;
 import vn.doancnpm.domain.Order;
@@ -39,6 +38,7 @@ import vn.doancnpm.dto.Response.InventoryStockResponse;
 import vn.doancnpm.repository.InventoryProductRepository;
 import vn.doancnpm.repository.ProductRepository;
 import vn.doancnpm.service.InventoryLogService;
+import vn.doancnpm.service.implement.IProductInventoryService;
 
 @ExtendWith(MockitoExtension.class)
 class ProductInventoryServiceTest {
@@ -71,12 +71,12 @@ class ProductInventoryServiceTest {
     order.setId(100L);
   }
 
-  /** Tạo dòng tồn kho: stock = số lượng đang bán, minThreshold mặc định 5. */
+  
   private InventoryProduct inventory(int stock) {
     return InventoryProduct.builder().id(1L).product(product).stock(stock).minThreshold(5).build();
   }
 
-  /** Tạo dòng tồn kho có cả tồn kho tổng (warehouseStock). */
+ 
   private InventoryProduct inventory(int stock, int warehouseStock) {
     InventoryProduct inv = inventory(stock);
     inv.setWarehouseStock(warehouseStock);

@@ -30,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import jakarta.persistence.EntityNotFoundException;
-import vn.doancnpm.service.implement.IToppingInventoryService;
 import vn.doancnpm.domain.InventoryLog.ChangeType;
 import vn.doancnpm.domain.InventoryTopping;
 import vn.doancnpm.domain.Order;
@@ -39,6 +38,7 @@ import vn.doancnpm.dto.Response.InventoryStockResponse;
 import vn.doancnpm.repository.InventoryToppingRepository;
 import vn.doancnpm.repository.ToppingRepository;
 import vn.doancnpm.service.InventoryLogService;
+import vn.doancnpm.service.implement.IToppingInventoryService;
 
 @ExtendWith(MockitoExtension.class)
 class ToppingInventoryServiceTest {
@@ -71,12 +71,12 @@ class ToppingInventoryServiceTest {
     order.setId(100L);
   }
 
-  /** Tạo dòng tồn kho: stock = số lượng đang bán, minThreshold mặc định 10. */
+  
   private InventoryTopping inventory(int stock) {
     return InventoryTopping.builder().id(1L).topping(topping).stock(stock).minThreshold(10).build();
   }
 
-  /** Tạo dòng tồn kho có cả tồn kho tổng (warehouseStock). */
+  
   private InventoryTopping inventory(int stock, int warehouseStock) {
     InventoryTopping inv = inventory(stock);
     inv.setWarehouseStock(warehouseStock);

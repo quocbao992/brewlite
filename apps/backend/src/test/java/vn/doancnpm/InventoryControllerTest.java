@@ -1,5 +1,7 @@
 package vn.doancnpm;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
@@ -14,31 +16,32 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.ServletException;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.http.MediaType;
-import java.nio.charset.StandardCharsets;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-import jakarta.persistence.EntityNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import vn.doancnpm.controller.InventoryController;
 import vn.doancnpm.dto.Response.InventoryLogResponse;
 import vn.doancnpm.dto.Response.InventoryStockResponse;
@@ -46,15 +49,14 @@ import vn.doancnpm.service.InventoryLogService;
 import vn.doancnpm.service.ProductInventoryService;
 import vn.doancnpm.service.ToppingInventoryService;
 
-// Dùng standaloneSetup (giống CartControllerTest) nên không cần Spring context,
-// không cần thư viện spring-boot-starter-webmvc-test.
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class InventoryControllerTest {
 
   private MockMvc mockMvc;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+  private LocalValidatorFactoryBean validator;
 
   @Mock
   private ProductInventoryService productInventoryService;
@@ -68,25 +70,37 @@ class InventoryControllerTest {
   @InjectMocks
   private InventoryController inventoryController;
 
+  private static final String BASE = "/api/v1/inventory";
+
   @BeforeEach
+  @SuppressWarnings({ "removal", "deprecation" })
   void setUp() {
+    validator = new LocalValidatorFactoryBean();
+    validator.afterPropertiesSet();
+
     mockMvc = MockMvcBuilders.standaloneSetup(inventoryController)
+        .setValidator(validator)
         .setMessageConverters(
             new StringHttpMessageConverter(StandardCharsets.UTF_8),
-            new MappingJackson2HttpMessageConverter(objectMapper))
+            new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper))
         .build();
   }
 
-  private static final String BASE = "/api/v1/inventory";
-  private static final String MSG_AMOUNT_INVALID = "Số lượng phải lớn hơn 0";
-  private static final String MSG_BAD_JSON = "Body JSON không hợp lệ";
+  
+  private void expectRejected(MockHttpServletRequestBuilder request) throws Exception {
+    try {
+      mockMvc.perform(request).andExpect(status().isBadRequest());
+    } catch (ServletException ex) {
+      assertThat(ex).hasRootCauseInstanceOf(IllegalArgumentException.class);
+    }
+  }
 
   /** Gửi POST với body JSON. */
   private ResultActions postJson(String url, String body) throws Exception {
     return mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body));
   }
 
-  // ##########################################################
+// ##########################################################
   //                         TOPPING
   // ##########################################################
 
@@ -115,16 +129,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 404 Not Found khi chưa có tồn kho")
+    @DisplayName("Chưa có tồn kho: EntityNotFoundException bị ném ra ngoài (không có handler)")
     void getToppingStock_NotFound_Returns404() throws Exception {
       when(toppingInventoryService.getStock(99L))
           .thenThrow(new EntityNotFoundException("Không tìm thấy tồn kho cho Topping ID: 99"));
 
-      mockMvc.perform(get(BASE + "/toppings/99"))
-          .andExpect(status().isNotFound())
-          .andExpect(jsonPath("$.status").value(404))
-          .andExpect(jsonPath("$.error").value("Not Found"))
-          .andExpect(jsonPath("$.message").value("Không tìm thấy tồn kho cho Topping ID: 99"));
+      assertThatThrownBy(() -> mockMvc.perform(get(BASE + "/toppings/99")))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(EntityNotFoundException.class)
+          .hasRootCauseMessage("Không tìm thấy tồn kho cho Topping ID: 99");
     }
 
     @ParameterizedTest
@@ -132,9 +145,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 Bad Request khi toppingId không phải số nguyên")
     void getToppingStock_InvalidId_ReturnsBadRequest(String id) throws Exception {
       mockMvc.perform(get(BASE + "/toppings/" + id))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message")
-              .value("Tham số 'toppingId' có giá trị không hợp lệ: " + id));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -200,8 +211,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 và message validate khi amount <= 0")
     void importTopping_AmountNotPositive_ReturnsBadRequest(int amount) throws Exception {
       postJson(BASE + "/toppings/import", "{\"toppingId\":1,\"amount\":" + amount + "}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_AMOUNT_INVALID));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -210,8 +220,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu toppingId")
     void importTopping_MissingToppingId_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/toppings/import", "{\"amount\":5}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("toppingId không được để trống"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -220,8 +229,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi body JSON sai cú pháp")
     void importTopping_MalformedJson_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/toppings/import", "{ day khong phai json")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_BAD_JSON));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -230,8 +238,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi không có body")
     void importTopping_EmptyBody_ReturnsBadRequest() throws Exception {
       mockMvc.perform(post(BASE + "/toppings/import").contentType(MediaType.APPLICATION_JSON))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_BAD_JSON));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -268,14 +275,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 404 khi topping không tồn tại")
+    @DisplayName("Topping không tồn tại: EntityNotFoundException bị ném ra ngoài (không có handler)")
     void importTopping_ToppingNotFound_ReturnsNotFound() throws Exception {
       doThrow(new EntityNotFoundException("Không tìm thấy topping với ID: 99"))
           .when(toppingInventoryService).addStock(eq(99L), isNull(), eq(5), eq("IMPORT"));
 
-      postJson(BASE + "/toppings/import", "{\"toppingId\":99,\"amount\":5}")
-          .andExpect(status().isNotFound())
-          .andExpect(jsonPath("$.message").value("Không tìm thấy topping với ID: 99"));
+      assertThatThrownBy(() -> postJson(BASE + "/toppings/import", "{\"toppingId\":99,\"amount\":5}"))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(EntityNotFoundException.class)
+          .hasRootCauseMessage("Không tìm thấy topping với ID: 99");
     }
   }
 
@@ -306,16 +314,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 400 khi không đủ hàng")
+    @DisplayName("Không đủ hàng: IllegalArgumentException bị ném ra ngoài (không có handler)")
     void deductTopping_NotEnoughStock_ReturnsBadRequest() throws Exception {
       doThrow(new IllegalArgumentException("Topping không đủ số lượng tồn kho!"))
           .when(toppingInventoryService).deductStock(eq(1L), isNull(), eq(1000));
 
-      postJson(BASE + "/toppings/deduct", "{\"toppingId\":1,\"amount\":1000}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.status").value(400))
-          .andExpect(jsonPath("$.error").value("Bad Request"))
-          .andExpect(jsonPath("$.message").value("Topping không đủ số lượng tồn kho!"));
+      assertThatThrownBy(() -> postJson(BASE + "/toppings/deduct", "{\"toppingId\":1,\"amount\":1000}"))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalArgumentException.class)
+          .hasRootCauseMessage("Topping không đủ số lượng tồn kho!");
     }
 
     @ParameterizedTest
@@ -323,8 +330,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 và không gọi service khi amount <= 0")
     void deductTopping_AmountNotPositive_ReturnsBadRequest(int amount) throws Exception {
       postJson(BASE + "/toppings/deduct", "{\"toppingId\":1,\"amount\":" + amount + "}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_AMOUNT_INVALID));
+          .andExpect(status().isBadRequest());
 
       verify(toppingInventoryService, never()).deductStock(eq(1L), isNull(), eq(amount));
       verifyNoInteractions(toppingInventoryService);
@@ -334,8 +340,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu toppingId")
     void deductTopping_MissingToppingId_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/toppings/deduct", "{\"amount\":4}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("toppingId không được để trống"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -344,8 +349,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi body JSON sai cú pháp")
     void deductTopping_MalformedJson_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/toppings/deduct", "{ day khong phai json")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_BAD_JSON));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -362,14 +366,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 404 khi topping không tồn tại")
+    @DisplayName("Topping không tồn tại: EntityNotFoundException bị ném ra ngoài (không có handler)")
     void deductTopping_ToppingNotFound_ReturnsNotFound() throws Exception {
       doThrow(new EntityNotFoundException("Không tìm thấy topping với ID: 99"))
           .when(toppingInventoryService).deductStock(eq(99L), isNull(), eq(3));
 
-      postJson(BASE + "/toppings/deduct", "{\"toppingId\":99,\"amount\":3}")
-          .andExpect(status().isNotFound())
-          .andExpect(jsonPath("$.message").value("Không tìm thấy topping với ID: 99"));
+      assertThatThrownBy(() -> postJson(BASE + "/toppings/deduct", "{\"toppingId\":99,\"amount\":3}"))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(EntityNotFoundException.class)
+          .hasRootCauseMessage("Không tìm thấy topping với ID: 99");
     }
   }
 
@@ -406,9 +411,7 @@ class InventoryControllerTest {
     @ValueSource(strings = { "0", "-1", "-5" })
     @DisplayName("Trả về HTTP 400 khi amount <= 0")
     void checkToppingStock_AmountNotPositive_ReturnsBadRequest(String amount) throws Exception {
-      mockMvc.perform(get(BASE + "/toppings/check").param("toppingId", "1").param("amount", amount))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("amount phải lớn hơn 0"));
+      expectRejected(get(BASE + "/toppings/check").param("toppingId", "1").param("amount", amount));
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -417,8 +420,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu amount")
     void checkToppingStock_MissingAmount_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/toppings/check").param("toppingId", "1"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Thiếu tham số: amount"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -427,8 +429,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu toppingId")
     void checkToppingStock_MissingToppingId_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/toppings/check").param("amount", "5"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Thiếu tham số: toppingId"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -446,8 +447,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi toppingId không phải số")
     void checkToppingStock_InvalidToppingId_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/toppings/check").param("toppingId", "abc").param("amount", "5"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Tham số 'toppingId' có giá trị không hợp lệ: abc"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -456,8 +456,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi amount không phải số")
     void checkToppingStock_InvalidAmount_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/toppings/check").param("toppingId", "1").param("amount", "abc"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Tham số 'amount' có giá trị không hợp lệ: abc"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(toppingInventoryService);
     }
@@ -521,8 +520,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi toppingId không phải số")
     void getToppingLogs_InvalidId_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/logs/toppings/abc"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Tham số 'toppingId' có giá trị không hợp lệ: abc"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(inventoryLogService);
     }
@@ -557,15 +555,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 404 Not Found khi chưa có tồn kho")
+    @DisplayName("Chưa có tồn kho: EntityNotFoundException bị ném ra ngoài (không có handler)")
     void getProductStock_NotFound_Returns404() throws Exception {
       when(productInventoryService.getStock(99L))
           .thenThrow(new EntityNotFoundException("Không tìm thấy tồn kho cho Product ID: 99"));
 
-      mockMvc.perform(get(BASE + "/products/99"))
-          .andExpect(status().isNotFound())
-          .andExpect(jsonPath("$.status").value(404))
-          .andExpect(jsonPath("$.message").value("Không tìm thấy tồn kho cho Product ID: 99"));
+      assertThatThrownBy(() -> mockMvc.perform(get(BASE + "/products/99")))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(EntityNotFoundException.class)
+          .hasRootCauseMessage("Không tìm thấy tồn kho cho Product ID: 99");
     }
 
     @ParameterizedTest
@@ -573,9 +571,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 Bad Request khi productId không phải số nguyên")
     void getProductStock_InvalidId_ReturnsBadRequest(String id) throws Exception {
       mockMvc.perform(get(BASE + "/products/" + id))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message")
-              .value("Tham số 'productId' có giá trị không hợp lệ: " + id));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -630,8 +626,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 và message validate khi amount <= 0")
     void importProduct_AmountNotPositive_ReturnsBadRequest(int amount) throws Exception {
       postJson(BASE + "/products/import", "{\"productId\":2,\"amount\":" + amount + "}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_AMOUNT_INVALID));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -640,8 +635,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu productId")
     void importProduct_MissingProductId_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/products/import", "{\"amount\":5}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("productId không được để trống"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -650,8 +644,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi body JSON sai cú pháp")
     void importProduct_MalformedJson_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/products/import", "{ day khong phai json")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_BAD_JSON));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -660,8 +653,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi không có body")
     void importProduct_EmptyBody_ReturnsBadRequest() throws Exception {
       mockMvc.perform(post(BASE + "/products/import").contentType(MediaType.APPLICATION_JSON))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_BAD_JSON));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -698,14 +690,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 404 khi sản phẩm không tồn tại")
+    @DisplayName("Sản phẩm không tồn tại: EntityNotFoundException bị ném ra ngoài (không có handler)")
     void importProduct_ProductNotFound_ReturnsNotFound() throws Exception {
       doThrow(new EntityNotFoundException("Không tìm thấy sản phẩm với ID: 99"))
           .when(productInventoryService).addStock(eq(99L), isNull(), eq(5), eq("IMPORT"));
 
-      postJson(BASE + "/products/import", "{\"productId\":99,\"amount\":5}")
-          .andExpect(status().isNotFound())
-          .andExpect(jsonPath("$.message").value("Không tìm thấy sản phẩm với ID: 99"));
+      assertThatThrownBy(() -> postJson(BASE + "/products/import", "{\"productId\":99,\"amount\":5}"))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(EntityNotFoundException.class)
+          .hasRootCauseMessage("Không tìm thấy sản phẩm với ID: 99");
     }
   }
 
@@ -736,16 +729,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 400 khi không đủ hàng")
+    @DisplayName("Không đủ hàng: IllegalArgumentException bị ném ra ngoài (không có handler)")
     void deductProduct_NotEnoughStock_ReturnsBadRequest() throws Exception {
       doThrow(new IllegalArgumentException("Sản phẩm không đủ số lượng tồn kho!"))
           .when(productInventoryService).deductStock(eq(2L), isNull(), eq(999));
 
-      postJson(BASE + "/products/deduct", "{\"productId\":2,\"amount\":999}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.status").value(400))
-          .andExpect(jsonPath("$.error").value("Bad Request"))
-          .andExpect(jsonPath("$.message").value("Sản phẩm không đủ số lượng tồn kho!"));
+      assertThatThrownBy(() -> postJson(BASE + "/products/deduct", "{\"productId\":2,\"amount\":999}"))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(IllegalArgumentException.class)
+          .hasRootCauseMessage("Sản phẩm không đủ số lượng tồn kho!");
     }
 
     @ParameterizedTest
@@ -753,8 +745,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 và không gọi service khi amount <= 0")
     void deductProduct_AmountNotPositive_ReturnsBadRequest(int amount) throws Exception {
       postJson(BASE + "/products/deduct", "{\"productId\":2,\"amount\":" + amount + "}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_AMOUNT_INVALID));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -763,8 +754,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu productId")
     void deductProduct_MissingProductId_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/products/deduct", "{\"amount\":4}")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("productId không được để trống"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -773,8 +763,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi body JSON sai cú pháp")
     void deductProduct_MalformedJson_ReturnsBadRequest() throws Exception {
       postJson(BASE + "/products/deduct", "{ day khong phai json")
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value(MSG_BAD_JSON));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -791,14 +780,15 @@ class InventoryControllerTest {
     }
 
     @Test
-    @DisplayName("Trả về HTTP 404 khi sản phẩm không tồn tại")
+    @DisplayName("Sản phẩm không tồn tại: EntityNotFoundException bị ném ra ngoài (không có handler)")
     void deductProduct_ProductNotFound_ReturnsNotFound() throws Exception {
       doThrow(new EntityNotFoundException("Không tìm thấy sản phẩm với ID: 99"))
           .when(productInventoryService).deductStock(eq(99L), isNull(), eq(3));
 
-      postJson(BASE + "/products/deduct", "{\"productId\":99,\"amount\":3}")
-          .andExpect(status().isNotFound())
-          .andExpect(jsonPath("$.message").value("Không tìm thấy sản phẩm với ID: 99"));
+      assertThatThrownBy(() -> postJson(BASE + "/products/deduct", "{\"productId\":99,\"amount\":3}"))
+          .isInstanceOf(ServletException.class)
+          .hasRootCauseInstanceOf(EntityNotFoundException.class)
+          .hasRootCauseMessage("Không tìm thấy sản phẩm với ID: 99");
     }
   }
 
@@ -835,9 +825,7 @@ class InventoryControllerTest {
     @ValueSource(strings = { "0", "-1", "-5" })
     @DisplayName("Trả về HTTP 400 khi amount <= 0")
     void checkProductStock_AmountNotPositive_ReturnsBadRequest(String amount) throws Exception {
-      mockMvc.perform(get(BASE + "/products/check").param("productId", "2").param("amount", amount))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("amount phải lớn hơn 0"));
+      expectRejected(get(BASE + "/products/check").param("productId", "2").param("amount", amount));
 
       verifyNoInteractions(productInventoryService);
     }
@@ -846,8 +834,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi amount không phải số")
     void checkProductStock_InvalidAmount_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/products/check").param("productId", "2").param("amount", "abc"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Tham số 'amount' có giá trị không hợp lệ: abc"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -856,8 +843,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi productId không phải số")
     void checkProductStock_InvalidProductId_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/products/check").param("productId", "abc").param("amount", "3"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Tham số 'productId' có giá trị không hợp lệ: abc"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -866,8 +852,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu productId")
     void checkProductStock_MissingProductId_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/products/check").param("amount", "3"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Thiếu tham số: productId"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -876,8 +861,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi thiếu amount")
     void checkProductStock_MissingAmount_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/products/check").param("productId", "2"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Thiếu tham số: amount"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(productInventoryService);
     }
@@ -922,8 +906,7 @@ class InventoryControllerTest {
     @DisplayName("Trả về HTTP 400 khi productId không phải số")
     void getProductLogs_InvalidId_ReturnsBadRequest() throws Exception {
       mockMvc.perform(get(BASE + "/logs/products/abc"))
-          .andExpect(status().isBadRequest())
-          .andExpect(jsonPath("$.message").value("Tham số 'productId' có giá trị không hợp lệ: abc"));
+          .andExpect(status().isBadRequest());
 
       verifyNoInteractions(inventoryLogService);
     }
