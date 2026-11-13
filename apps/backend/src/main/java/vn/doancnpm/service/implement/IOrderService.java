@@ -105,7 +105,10 @@ public class IOrderService implements OrderService {
         order.setStatus(newStatus);
         Order saved = orderRepo.save(order);
         if (newStatus == Order.Status.COMPLETED) {
-            loyaltyService.earnPoints(orderId); // cộng điểm thưởng
+            try {
+                loyaltyService.earnPoints(orderId);
+            } catch (IllegalStateException ignored) {
+            }
         }
         return mapToOrderResponse(saved);
     }

@@ -81,18 +81,16 @@ public class ILoyaltyService implements LoyaltyService {
         return points;
     }
 
-    // Cộng điểm thưởng (gọi khi đơn chuyển sang COMPLETED)
     @Override
     public int earnPoints(Long orderId) {
         Order order = findOrder(orderId);
-                //.orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng"));
 
-        if (order.getStatus() != Order.Status.COMPLETED) {
-        throw new IllegalStateException("Chỉ cộng điểm khi đơn hàng đã hoàn tất");
+        if (order.getStatus() != Order.Status.COMPLETED && order.getStatus() != Order.Status.PAID) {
+            throw new IllegalStateException("Chỉ cộng điểm khi đơn hàng đã thanh toán hoặc hoàn tất");
         }
         if (txRepo.existsByOrderIdAndType(orderId, EARN)) {
-        throw new IllegalStateException("Đơn hàng này đã được cộng điểm");
-    }
+            throw new IllegalStateException("Đơn hàng này đã được cộng điểm");
+        }
 
         int points = calculatePoints(order.getTotalAmount());
         if (points > 0) {

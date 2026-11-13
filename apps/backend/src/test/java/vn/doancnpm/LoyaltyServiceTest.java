@@ -187,8 +187,24 @@ class LoyaltyServiceTest {
     }
 
     @Test
+    void earnPoints_paidOrder_addsPointsAndSavesEarn() {
+        Customer c = customer(1L, 50);
+        Order o = order(10L, Order.Status.PAID, "115000", 5, c);
+        when(orderRepo.findById(10L)).thenReturn(Optional.of(o));
+
+        int result = service.earnPoints(10L);
+
+        assertThat(result).isEqualTo(11);
+        assertThat(c.getLoyaltyP()).isEqualTo(61);
+        ArgumentCaptor<LoyaltyTransaction> cap = ArgumentCaptor.forClass(LoyaltyTransaction.class);
+        verify(txRepo).save(cap.capture());
+        assertThat(cap.getValue().getType()).isEqualTo("EARN");
+        assertThat(cap.getValue().getPoints()).isEqualTo(11);
+    }
+
+    @Test
     void earnPoints_orderNotCompleted_throws() {
-        Order o = order(10L, Order.Status.PAID, "115000", 0, customer(1L, 50));
+        Order o = order(10L, Order.Status.PENDING, "115000", 0, customer(1L, 50));
         when(orderRepo.findById(10L)).thenReturn(Optional.of(o));
         assertThrows(IllegalStateException.class, () -> service.earnPoints(10L));
         verify(txRepo, never()).save(any(LoyaltyTransaction.class));

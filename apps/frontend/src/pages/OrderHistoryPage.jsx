@@ -381,16 +381,14 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {item.productImage && (
-                            <img
-                              src={item.productImage}
-                              alt={item.productName}
-                              style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }}
-                              onError={(e) => {
-                                e.target.src = defaultCoffeeImg;
-                              }}
-                            />
-                          )}
+                          <img
+                            src={resolveProductImage(item)}
+                            alt={item.productName || item.name}
+                            style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.target.src = defaultCoffeeImg;
+                            }}
+                          />
                           <div>
                             <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>
                               {item.productName || item.name} <span style={{ color: '#64748b' }}>x {item.quantity}</span>
@@ -613,10 +611,9 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      {/* Xử lý thu nhỏ ảnh món ăn để nếu có nhiều món/nhiều ảnh vẫn gọn gàng */}
                       <img
-                        src={item.productImage || defaultCoffeeImg}
-                        alt={item.productName}
+                        src={resolveProductImage(item)}
+                        alt={item.productName || item.name}
                         style={{
                           width: '48px',
                           height: '48px',

@@ -22,8 +22,8 @@ export const defaultCoffeeImg = caffeLatte;
 
 export const resolveProductImage = (product) => {
   if (!product) return defaultCoffeeImg;
-  const imgURL = product.imgURL || product.img || '';
-  const name = (product.name || '').toLowerCase();
+  const imgURL = product.imgURL || product.img || product.productImage || '';
+  const name = (product.name || product.productName || '').toLowerCase();
 
   if (imgURL.startsWith('http://') || imgURL.startsWith('https://')) {
     return imgURL;
