@@ -82,6 +82,7 @@ public class ILoyaltyService implements LoyaltyService {
     }
 
     @Override
+    @Transactional(noRollbackFor = IllegalStateException.class)
     public int earnPoints(Long orderId) {
         Order order = findOrder(orderId);
 

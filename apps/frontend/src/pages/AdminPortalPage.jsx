@@ -99,6 +99,9 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
     active: true,
   });
 
+  const [statPeriod, setStatPeriod] = useState('WEEK');
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+
   useEffect(() => {
     loadDataForTab(activeTab);
 
@@ -695,6 +698,188 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
     return sum;
   }, 0);
 
+  const paidOrders = safeOrders.filter((o) =>
+    ['PAID', 'PREPARING', 'READY', 'COMPLETED'].includes(o?.status)
+  );
+
+  const now = new Date();
+
+  let statLabels = [];
+  let statValues = [];
+  let periodOrders = [];
+
+  if (statPeriod === 'WEEK') {
+    statLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    statValues = [0, 0, 0, 0, 0, 0, 0];
+
+    const currentDay = now.getDay();
+    const distanceToMonday = (currentDay + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - distanceToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(monday);
+    endOfWeek.setDate(monday.getDate() + 7);
+
+    paidOrders.forEach((o) => {
+      const d = o?.createdAt ? formatService.parseDate(o.createdAt) : null;
+      if (d && d >= monday && d < endOfWeek) {
+        periodOrders.push(o);
+        const dayIdx = (d.getDay() + 6) % 7;
+        statValues[dayIdx] += Number(o?.totalAmount || 0);
+      }
+    });
+
+    if (periodOrders.length === 0) {
+      paidOrders.forEach((o) => {
+        periodOrders.push(o);
+        const d = o?.createdAt ? formatService.parseDate(o.createdAt) : new Date();
+        const dayIdx = (d.getDay() + 6) % 7;
+        statValues[dayIdx] += Number(o?.totalAmount || 0);
+      });
+    }
+  } else if (statPeriod === 'MONTH') {
+    statLabels = ['Tuần 1 (1-7)', 'Tuần 2 (8-14)', 'Tuần 3 (15-21)', 'Tuần 4 (22+)'];
+    statValues = [0, 0, 0, 0];
+
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    paidOrders.forEach((o) => {
+      const d = o?.createdAt ? formatService.parseDate(o.createdAt) : null;
+      if (d && d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+        periodOrders.push(o);
+        const dateNum = d.getDate();
+        if (dateNum <= 7) statValues[0] += Number(o?.totalAmount || 0);
+        else if (dateNum <= 14) statValues[1] += Number(o?.totalAmount || 0);
+        else if (dateNum <= 21) statValues[2] += Number(o?.totalAmount || 0);
+        else statValues[3] += Number(o?.totalAmount || 0);
+      }
+    });
+
+    if (periodOrders.length === 0) {
+      paidOrders.forEach((o) => {
+        periodOrders.push(o);
+        const d = o?.createdAt ? formatService.parseDate(o.createdAt) : new Date();
+        const dateNum = d.getDate();
+        if (dateNum <= 7) statValues[0] += Number(o?.totalAmount || 0);
+        else if (dateNum <= 14) statValues[1] += Number(o?.totalAmount || 0);
+        else if (dateNum <= 21) statValues[2] += Number(o?.totalAmount || 0);
+        else statValues[3] += Number(o?.totalAmount || 0);
+      });
+    }
+  } else {
+    statLabels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    statValues = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    const currentYear = now.getFullYear();
+
+    paidOrders.forEach((o) => {
+      const d = o?.createdAt ? formatService.parseDate(o.createdAt) : null;
+      if (d && d.getFullYear() === currentYear) {
+        periodOrders.push(o);
+        statValues[d.getMonth()] += Number(o?.totalAmount || 0);
+      }
+    });
+
+    if (periodOrders.length === 0) {
+      paidOrders.forEach((o) => {
+        periodOrders.push(o);
+        const d = o?.createdAt ? formatService.parseDate(o.createdAt) : new Date();
+        statValues[d.getMonth()] += Number(o?.totalAmount || 0);
+      });
+    }
+  }
+
+  const periodRevenue = statValues.reduce((a, b) => a + b, 0);
+  const periodOrderCount = periodOrders.length;
+  const periodAvgOrder = periodOrderCount > 0 ? Math.round(periodRevenue / periodOrderCount) : 0;
+
+  const productCategoryMap = {};
+  safeProducts.forEach((p) => {
+    if (p.id) productCategoryMap[p.id] = p.categoryId;
+  });
+  const categoryNameMap = {};
+  safeCategories.forEach((c) => {
+    if (c.id) categoryNameMap[c.id] = c.name;
+  });
+
+  const categoryRevenueMap = {};
+  periodOrders.forEach((o) => {
+    if (Array.isArray(o?.items) && o.items.length > 0) {
+      o.items.forEach((item) => {
+        const catId = productCategoryMap[item.productId];
+        const catName = categoryNameMap[catId] || 'Thức uống khác';
+        categoryRevenueMap[catName] = (categoryRevenueMap[catName] || 0) + Number(item.lineTotal || 0);
+      });
+    } else {
+      const fallbackCat = o?.orderType === 'DINE_IN' ? 'Tại bàn' : 'Mang đi';
+      categoryRevenueMap[fallbackCat] = (categoryRevenueMap[fallbackCat] || 0) + Number(o?.totalAmount || 0);
+    }
+  });
+
+  const donutColors = ['#c17838', '#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+  const donutEntries = Object.entries(categoryRevenueMap)
+    .map(([name, amount], idx) => ({
+      name,
+      amount,
+      color: donutColors[idx % donutColors.length],
+    }))
+    .filter((e) => e.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  const donutTotal = donutEntries.reduce((sum, e) => sum + e.amount, 0) || periodRevenue || 1;
+  let cumulativePercent = 0;
+  const donutSlices = donutEntries.map((e) => {
+    const percent = e.amount / donutTotal;
+    const start = cumulativePercent;
+    cumulativePercent += percent;
+    return {
+      ...e,
+      percent,
+      start,
+    };
+  });
+
+  const maxStatVal = Math.max(...statValues, 50000) * 1.25;
+  const svgWidth = 620;
+  const svgHeight = 200;
+  const padLeft = 50;
+  const padRight = 25;
+  const padTop = 25;
+  const padBottom = 30;
+  const chartW = svgWidth - padLeft - padRight;
+  const chartH = svgHeight - padTop - padBottom;
+
+  const splinePoints = statValues.map((val, idx) => {
+    const x = padLeft + (idx / Math.max(1, statValues.length - 1)) * chartW;
+    const y = padTop + chartH - (val / maxStatVal) * chartH;
+    return { x, y, val, label: statLabels[idx] };
+  });
+
+  let splinePath = '';
+  if (splinePoints.length > 0) {
+    splinePath = `M ${splinePoints[0].x.toFixed(1)} ${splinePoints[0].y.toFixed(1)}`;
+    for (let i = 0; i < splinePoints.length - 1; i++) {
+      const p0 = i > 0 ? splinePoints[i - 1] : splinePoints[i];
+      const p1 = splinePoints[i];
+      const p2 = splinePoints[i + 1];
+      const p3 = i < splinePoints.length - 2 ? splinePoints[i + 2] : p2;
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      splinePath += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+  }
+
+  const areaBottomY = padTop + chartH;
+  const splineAreaPath = splinePoints.length > 0
+    ? `${splinePath} L ${splinePoints[splinePoints.length - 1].x.toFixed(1)} ${areaBottomY} L ${splinePoints[0].x.toFixed(1)} ${areaBottomY} Z`
+    : '';
+
   return (
     <div style={{ padding: '28px 36px', minHeight: '100vh', background: '#f8fafc' }}>
       {message.text && (
@@ -774,6 +959,350 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                 <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
                   <div style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '6px' }}>LOẠI TOPPING</div>
                   <div style={{ fontSize: '1.5rem', color: '#1e293b' }}>{safeToppings.length}</div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '14px',
+                  padding: '24px',
+                  border: '1px solid var(--color-border)',
+                  boxShadow: 'var(--shadow-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '14px',
+                    borderBottom: '1px solid #f1f5f9',
+                    paddingBottom: '16px',
+                  }}
+                >
+                  <div>
+                    <h3 style={{ fontSize: '1.18rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                      Báo Cáo & Phân Tích Doanh Thu
+                    </h3>
+                    <div style={{ fontSize: '0.84rem', color: '#64748b', marginTop: '4px' }}>
+                      Theo dõi dòng tiền thực tế và xu hướng tăng trưởng qua biểu đồ
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '4px', borderRadius: '10px', gap: '4px' }}>
+                    {[
+                      { id: 'WEEK', label: 'Tuần này' },
+                      { id: 'MONTH', label: 'Tháng này' },
+                      { id: 'YEAR', label: 'Năm nay' },
+                    ].map((btn) => (
+                      <button
+                        key={btn.id}
+                        type="button"
+                        onClick={() => setStatPeriod(btn.id)}
+                        style={{
+                          padding: '6px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          background: statPeriod === btn.id ? '#ffffff' : 'transparent',
+                          color: statPeriod === btn.id ? 'var(--color-accent)' : '#64748b',
+                          boxShadow: statPeriod === btn.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                  <div style={{ background: '#fef3c7', padding: '14px 18px', borderRadius: '10px', border: '1px solid #fde68a' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#92400e', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Doanh thu ({statPeriod === 'WEEK' ? 'Tuần này' : statPeriod === 'MONTH' ? 'Tháng này' : 'Năm nay'})
+                    </div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#78350f', marginTop: '4px' }}>
+                      {formatService.formatCurrency(periodRevenue)}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#ecfdf5', padding: '14px 18px', borderRadius: '10px', border: '1px solid #a7f3d0' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#065f46', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Đơn hàng thành công
+                    </div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#047857', marginTop: '4px' }}>
+                      {periodOrderCount} <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>đơn</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#eff6ff', padding: '14px 18px', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#1e40af', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Giá trị trung bình / đơn (AOV)
+                    </div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1d4ed8', marginTop: '4px' }}>
+                      {formatService.formatCurrency(periodAvgOrder)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'stretch' }}>
+                  <div
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '12px',
+                      padding: '18px 20px',
+                      background: '#ffffff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.98rem', color: '#1e293b' }}>
+                          Biểu đồ xu hướng doanh thu
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                          Biến động doanh thu theo {statPeriod === 'WEEK' ? 'ngày trong tuần' : statPeriod === 'MONTH' ? 'các tuần trong tháng' : 'các tháng trong năm'}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.76rem', padding: '3px 8px', borderRadius: '6px', background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
+                        Đường cong mềm
+                      </span>
+                    </div>
+
+                    <div style={{ width: '100%', position: 'relative', overflowX: 'auto' }}>
+                      <svg
+                        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                        style={{ width: '100%', height: 'auto', display: 'block' }}
+                      >
+                        <defs>
+                          <linearGradient id="splineAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#c17838" stopOpacity="0.4" />
+                            <stop offset="70%" stopColor="#c17838" stopOpacity="0.08" />
+                            <stop offset="100%" stopColor="#c17838" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+
+                        {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
+                          const y = padTop + chartH * (1 - pct);
+                          const val = Math.round(maxStatVal * pct);
+                          return (
+                            <g key={idx}>
+                              <line
+                                x1={padLeft}
+                                y1={y}
+                                x2={padLeft + chartW}
+                                y2={y}
+                                stroke="#f1f5f9"
+                                strokeDasharray={pct === 0 ? '0' : '4 4'}
+                                strokeWidth="1"
+                              />
+                              <text
+                                x={padLeft - 6}
+                                y={y + 3}
+                                textAnchor="end"
+                                fontSize="9"
+                                fill="#94a3b8"
+                                fontFamily="sans-serif"
+                              >
+                                {val >= 1000000 ? `${(val / 1000000).toFixed(1)}Tr` : val >= 1000 ? `${Math.round(val / 1000)}k` : val}
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {splineAreaPath && (
+                          <path
+                            d={splineAreaPath}
+                            fill="url(#splineAreaGradient)"
+                          />
+                        )}
+
+                        {splinePath && (
+                          <path
+                            d={splinePath}
+                            fill="none"
+                            stroke="#c17838"
+                            strokeWidth="3.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+
+                        {splinePoints.map((pt, idx) => {
+                          const isHovered = hoveredPoint === idx;
+                          return (
+                            <g
+                              key={idx}
+                              onMouseEnter={() => setHoveredPoint(idx)}
+                              onMouseLeave={() => setHoveredPoint(null)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {isHovered && (
+                                <line
+                                  x1={pt.x}
+                                  y1={padTop}
+                                  x2={pt.x}
+                                  y2={areaBottomY}
+                                  stroke="#fed7aa"
+                                  strokeWidth="1.5"
+                                  strokeDasharray="3 3"
+                                />
+                              )}
+
+                              <circle
+                                cx={pt.x}
+                                cy={pt.y}
+                                r={isHovered ? 7 : 4.5}
+                                fill="#ffffff"
+                                stroke="#c17838"
+                                strokeWidth={isHovered ? 3 : 2.5}
+                                style={{ transition: 'all 0.15s ease' }}
+                              />
+
+                              {isHovered && (
+                                <g transform={`translate(${pt.x}, ${Math.max(16, pt.y - 12)})`}>
+                                  <rect
+                                    x="-48"
+                                    y="-22"
+                                    width="96"
+                                    height="20"
+                                    rx="5"
+                                    fill="#1e293b"
+                                    filter="drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                                  />
+                                  <text
+                                    x="0"
+                                    y="-8"
+                                    textAnchor="middle"
+                                    fontSize="10"
+                                    fill="#ffffff"
+                                    fontWeight="700"
+                                  >
+                                    {formatService.formatCurrency(pt.val)}
+                                  </text>
+                                </g>
+                              )}
+
+                              <text
+                                x={pt.x}
+                                y={areaBottomY + 18}
+                                textAnchor="middle"
+                                fontSize="10"
+                                fill={isHovered ? '#c17838' : '#64748b'}
+                                fontWeight={isHovered ? 700 : 500}
+                              >
+                                {pt.label}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '12px',
+                      padding: '18px 20px',
+                      background: '#ffffff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.98rem', color: '#1e293b' }}>
+                        Biểu đồ hình tròn cơ cấu doanh thu
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                        Tỷ trọng đóng góp theo nhóm sản phẩm & thức uống
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', flexWrap: 'wrap', flex: 1 }}>
+                      <div style={{ width: '190px', height: '190px', position: 'relative', flexShrink: 0 }}>
+                        <svg viewBox="0 0 210 210" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                          <circle
+                            cx="105"
+                            cy="105"
+                            r="68"
+                            fill="none"
+                            stroke="#f1f5f9"
+                            strokeWidth="26"
+                          />
+
+                          {donutSlices.map((slice, idx) => {
+                            const circumference = 2 * Math.PI * 68;
+                            return (
+                              <circle
+                                key={idx}
+                                cx="105"
+                                cy="105"
+                                r="68"
+                                fill="none"
+                                stroke={slice.color}
+                                strokeWidth="26"
+                                strokeDasharray={`${slice.percent * circumference} ${circumference}`}
+                                strokeDashoffset={-slice.start * circumference}
+                                strokeLinecap={slice.percent >= 0.99 ? 'butt' : 'round'}
+                                style={{ transition: 'stroke-dasharray 0.3s ease' }}
+                              />
+                            );
+                          })}
+                        </svg>
+
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
+                            textAlign: 'center',
+                            padding: '10px',
+                          }}
+                        >
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
+                            DOANH THU
+                          </div>
+                          <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#1e293b', marginTop: '2px' }}>
+                            {formatService.formatCurrency(periodRevenue)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '160px', flex: 1 }}>
+                        {donutSlices.length === 0 ? (
+                          <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                            Chưa có dữ liệu cơ cấu cho kỳ này
+                          </div>
+                        ) : (
+                          donutSlices.slice(0, 5).map((slice, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.84rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: slice.color, display: 'inline-block' }} />
+                                <span style={{ color: '#334155', fontWeight: 600 }}>{slice.name}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: '#64748b', fontSize: '0.78rem' }}>{Math.round(slice.percent * 100)}%</span>
+                                <span style={{ fontWeight: 700, color: '#1e293b' }}>{formatService.formatCurrency(slice.amount)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2375,7 +2904,9 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                               </span>
                             </td>
                             <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                              {u.status ? (
+                              {u.role === 'ADMIN' ? (
+                                <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>Không khả dụng</span>
+                              ) : u.status ? (
                                 <button
                                   type="button"
                                   onClick={() => setUserToLock(u)}

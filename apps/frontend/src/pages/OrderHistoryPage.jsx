@@ -24,6 +24,48 @@ export const OrderHistoryPage = ({ onNavigate }) => {
   const [paymentModalOrder, setPaymentModalOrder] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentMsg, setPaymentMsg] = useState('');
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getOrderRemainingSeconds = (createdAt) => {
+    if (!createdAt) return 0;
+    const date = formatService.parseDate(createdAt);
+    if (!date || isNaN(date.getTime())) return 0;
+    const expireMs = date.getTime() + 5 * 60 * 1000;
+    return Math.max(0, Math.floor((expireMs - nowTick) / 1000));
+  };
+
+  const formatCountdown = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    let hasExpired = false;
+    orders.forEach((o) => {
+      if (o.status === 'PENDING' && o.createdAt) {
+        const date = formatService.parseDate(o.createdAt);
+        if (date && !isNaN(date.getTime())) {
+          const remain = getOrderRemainingSeconds(o.createdAt);
+          if (remain <= 0) {
+            hasExpired = true;
+            orderApi.cancel(o.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
+            o.status = 'CANCELLED';
+          }
+        }
+      }
+    });
+    if (hasExpired) {
+      setOrders([...orders]);
+    }
+  }, [nowTick]);
 
   const loadOrders = async (isBackground = false) => {
     try {
@@ -99,8 +141,13 @@ export const OrderHistoryPage = ({ onNavigate }) => {
     }
   };
 
-  // Xử lý xác nhận thanh toán giả lập khi tiếp tục thanh toán từ Đơn Hàng Của Tôi
   const handlePayNow = async (order) => {
+    if (getOrderRemainingSeconds(order.createdAt) <= 0) {
+      setPaymentMsg('Đơn hàng đã hết hạn thanh toán (quá 5 phút) và đã tự động hủy.');
+      orderApi.cancel(order.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
+      loadOrders();
+      return;
+    }
     setPaymentLoading(true);
     setPaymentMsg('');
     try {
@@ -179,7 +226,7 @@ export const OrderHistoryPage = ({ onNavigate }) => {
         <div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>Đơn Hàng Của Tôi</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-            Theo dõi trạng thái pha chế và nhận đồ uống theo thời gian thực (tự động cập nhật)
+            Theo dõi trạng thái pha chế và nhận đồ uống
           </p>
         </div>
 
@@ -276,7 +323,26 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                       {statusInfo.label}
                     </span>
 
-                    {/* Nút Tiếp tục thanh toán nếu đang Chờ thanh toán */}
+                    {isPending && (() => {
+                      const remain = getOrderRemainingSeconds(order.createdAt);
+                      return (
+                        <span
+                          style={{
+                            background: remain <= 60 ? '#fee2e2' : '#fef3c7',
+                            color: remain <= 60 ? '#dc2626' : '#b45309',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontWeight: 700,
+                            fontSize: '0.82rem',
+                            fontFamily: 'monospace',
+                            border: `1px solid ${remain <= 60 ? '#fca5a5' : '#fde68a'}`,
+                          }}
+                        >
+                          {remain <= 0 ? 'Hết giờ' : formatCountdown(remain)}
+                        </span>
+                      );
+                    })()}
+
                     {isPending && (
                       <button
                         className="btn btn-primary btn-sm"
@@ -594,6 +660,47 @@ export const OrderHistoryPage = ({ onNavigate }) => {
               </div>
             </div>
 
+            {selectedOrderDetail.status === 'PENDING' && (() => {
+              const remain = getOrderRemainingSeconds(selectedOrderDetail.createdAt);
+              const isExpired = remain <= 0;
+              return (
+                <div
+                  style={{
+                    background: isExpired || remain <= 60 ? '#fef2f2' : '#fffbeb',
+                    border: `1px solid ${isExpired || remain <= 60 ? '#fca5a5' : '#fde68a'}`,
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    color: isExpired || remain <= 60 ? '#b91c1c' : '#92400e',
+                    fontWeight: 600,
+                    fontSize: '0.92rem',
+                  }}
+                >
+                  <span>
+                    {isExpired ? 'Đơn hàng đã hết hạn thanh toán:' : 'Thời gian giữ đơn còn lại:'}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      color: isExpired || remain <= 60 ? '#dc2626' : '#b45309',
+                      background: '#ffffff',
+                      padding: '3px 12px',
+                      borderRadius: '6px',
+                      border: `1px solid ${isExpired || remain <= 60 ? '#fecaca' : '#fed7aa'}`,
+                      letterSpacing: '1px',
+                    }}
+                  >
+                    {isExpired ? '00:00 (Đã tự hủy)' : formatCountdown(remain)}
+                  </span>
+                </div>
+              );
+            })()}
+
             <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '10px' }}>Danh sách món đã đặt:</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
               {selectedOrderDetail.items && selectedOrderDetail.items.length > 0 ? (
@@ -661,7 +768,7 @@ export const OrderHistoryPage = ({ onNavigate }) => {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              {selectedOrderDetail.status === 'PENDING' && (
+              {selectedOrderDetail.status === 'PENDING' && getOrderRemainingSeconds(selectedOrderDetail.createdAt) > 0 && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -725,7 +832,45 @@ export const OrderHistoryPage = ({ onNavigate }) => {
               Số tiền cần thanh toán: <strong style={{ color: 'var(--color-accent, #c17838)', fontSize: '1.1rem' }}>{formatService.formatMoney(paymentModalOrder.totalAmount)}</strong>
             </p>
 
-            {/* Mã QR */}
+            {(() => {
+              const remain = getOrderRemainingSeconds(paymentModalOrder.createdAt);
+              const isExpired = remain <= 0;
+              return (
+                <div
+                  style={{
+                    background: isExpired || remain <= 60 ? '#fef2f2' : '#fffbeb',
+                    border: `1px solid ${isExpired || remain <= 60 ? '#fca5a5' : '#fde68a'}`,
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    color: isExpired || remain <= 60 ? '#b91c1c' : '#92400e',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  <span>{isExpired ? 'Đơn hàng đã hết hạn thanh toán:' : 'Thời gian thanh toán còn lại:'}</span>
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '1.2rem',
+                      fontWeight: 800,
+                      color: isExpired || remain <= 60 ? '#dc2626' : '#b45309',
+                      background: '#ffffff',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      border: `1px solid ${isExpired || remain <= 60 ? '#fecaca' : '#fed7aa'}`,
+                    }}
+                  >
+                    {isExpired ? '00:00 (Hết hạn)' : formatCountdown(remain)}
+                  </span>
+                </div>
+              );
+            })()}
+
             <div style={{ margin: '0 auto 16px', display: 'inline-block', padding: '8px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
@@ -761,7 +906,7 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                 type="button"
                 className="btn btn-primary"
                 onClick={() => handlePayNow(paymentModalOrder)}
-                disabled={paymentLoading}
+                disabled={paymentLoading || getOrderRemainingSeconds(paymentModalOrder.createdAt) <= 0}
                 style={{ padding: '12px', fontSize: '0.95rem', fontWeight: 600 }}
               >
                 {paymentLoading ? 'Đang gửi tín hiệu...' : 'Tôi đã hoàn tất thanh toán'}

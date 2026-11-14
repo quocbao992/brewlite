@@ -28,10 +28,16 @@ public class IPromotionService implements PromotionService {
     public BigDecimal calculateDiscount(String code, BigDecimal subtotal) {
         Promotion p = repo.findByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("Mã khuyến mãi không tồn tại"));
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
 
-        if (!p.isActive() || now.isBefore(p.getStartDate()) || now.isAfter(p.getEndDate())) {
-            throw new IllegalStateException("Mã khuyến mãi không còn hiệu lực");
+        if (!p.isActive()) {
+            throw new IllegalStateException("Mã khuyến mãi đã bị vô hiệu hóa");
+        }
+        if (p.getStartDate() != null && now.isBefore(p.getStartDate())) {
+            throw new IllegalStateException("Mã khuyến mãi chưa đến thời gian áp dụng");
+        }
+        if (p.getEndDate() != null && now.isAfter(p.getEndDate())) {
+            throw new IllegalStateException("Mã khuyến mãi đã hết hạn sử dụng");
         }
         if (p.getUsageLimit() != null && p.getUsedCount() >= p.getUsageLimit()) {
             throw new IllegalStateException("Mã khuyến mãi đã hết lượt dùng");

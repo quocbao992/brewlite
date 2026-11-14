@@ -92,6 +92,7 @@ public class IOrderService implements OrderService {
 
     // ===================== Cập nhật trạng thái =====================
     @Override
+    @Transactional(noRollbackFor = IllegalStateException.class)
     public OrderResponse updateStatus(Long orderId, Order.Status newStatus, String reason) {
         if (newStatus == Order.Status.CANCELLED) {
             String r = (reason == null || reason.isBlank()) ? "Nhân viên hủy đơn" : reason;
@@ -125,8 +126,21 @@ public class IOrderService implements OrderService {
         order.setStatus(Order.Status.CANCELLED);
         order.setCancelReason(reason);
         Order saved = orderRepo.save(order);
-        loyaltyService.revertPoints(orderId); // trả lại điểm khách đã dùng nếu có
+        loyaltyService.revertPoints(orderId);
         return mapToOrderResponse(saved);
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 10000)
+    @Transactional
+    public void autoCancelExpiredPendingOrders() {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(5);
+        List<Order> expiredOrders = orderRepo.findByStatusAndCreatedAtBefore(Order.Status.PENDING, cutoff);
+        for (Order o : expiredOrders) {
+            try {
+                cancel(o.getId(), "Hết thời gian chờ thanh toán (quá 5 phút)");
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     // ===================== Admin: lọc + phân trang =====================

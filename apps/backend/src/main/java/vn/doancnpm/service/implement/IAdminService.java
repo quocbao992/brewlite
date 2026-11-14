@@ -212,6 +212,9 @@ public class IAdminService implements AdminService {
     @Transactional
     public UserResponse updateStatus(Long id, boolean status) {
         User user = getUserEntityById(id);
+        if ("ADMIN".equalsIgnoreCase(user.getRole()) && !status) {
+            throw new IllegalStateException("Không thể khóa tài khoản Quản trị viên");
+        }
         user.setStatus(status);
 
         User savedUser = userRepository.save(user);

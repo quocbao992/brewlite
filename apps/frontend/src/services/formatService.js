@@ -15,10 +15,22 @@ export const formatService = {
     }).format(num);
   },
 
+  parseDate(dateInput) {
+    if (!dateInput) return null;
+    if (dateInput instanceof Date) return dateInput;
+    if (typeof dateInput === 'number') return new Date(dateInput);
+    const str = String(dateInput).trim();
+    if (!str) return null;
+    const hasTz = /[zZ]$|[+-]\d{2}(?::?\d{2})?$/.test(str);
+    const date = new Date(hasTz ? str : `${str}Z`);
+    return isNaN(date.getTime()) ? new Date(str) : date;
+  },
+
   formatDateTime(dateStr) {
     if (!dateStr) return '';
     try {
-      const date = new Date(dateStr);
+      const date = this.parseDate(dateStr);
+      if (!date || isNaN(date.getTime())) return String(dateStr);
       return new Intl.DateTimeFormat('vi-VN', {
         year: 'numeric',
         month: '2-digit',
@@ -27,7 +39,7 @@ export const formatService = {
         minute: '2-digit',
       }).format(date);
     } catch {
-      return dateStr;
+      return String(dateStr);
     }
   },
 

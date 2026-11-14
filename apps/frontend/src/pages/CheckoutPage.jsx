@@ -35,6 +35,8 @@ export const CheckoutPage = ({ onNavigate }) => {
   const [createdOrder, setCreatedOrder] = useState(null);
   const [paymentData, setPaymentData] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentCountdown, setPaymentCountdown] = useState(300);
+  const [isOrderExpired, setIsOrderExpired] = useState(false);
 
   // Đồng bộ giỏ hàng từ Frontend lên Backend trước khi checkout
   const syncCartToServer = async (customerId) => {
@@ -104,6 +106,13 @@ export const CheckoutPage = ({ onNavigate }) => {
         params: { code, amount: subtotal },
       });
       const discount = Number(res?.discountAmount ?? res) || 0;
+      if (discount <= 0) {
+        setDiscountAmount(0);
+        setVoucherDetail(null);
+        setVoucherSuccess('');
+        setVoucherError('Mã ưu đãi không hợp lệ hoặc đã hết hạn');
+        return;
+      }
       let type = res?.discountType;
       let val = Number(res?.discountValue);
 
@@ -196,6 +205,11 @@ export const CheckoutPage = ({ onNavigate }) => {
       return;
     }
 
+    if (voucherCode.trim() && (voucherError || discountAmount <= 0 || !voucherDetail)) {
+      setErrorMsg(`Mã giảm giá "${voucherCode.trim().toUpperCase()}" không hợp lệ hoặc đã hết hạn. Vui lòng xóa hoặc đổi mã khác.`);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -208,15 +222,17 @@ export const CheckoutPage = ({ onNavigate }) => {
         customerId,
         orderType,
         tableNumber: orderType === OrderType.DINE_IN ? tableNumber.trim() : '',
-        voucherCode: voucherCode.trim().toUpperCase() || undefined,
+        voucherCode: (voucherDetail && discountAmount > 0) ? voucherCode.trim().toUpperCase() : undefined,
         loyaltyPointsUsed: actualPointsUsed,
         note: note.trim(),
         paymentMethod, // 'VNPay', 'Momo', hoặc 'Stripe'
       };
 
-      // 2. Tạo đơn hàng qua checkoutService
       const orderRes = await orderApi.checkout(payload);
+      orderRes._createdClientTime = Date.now();
       setCreatedOrder(orderRes);
+      setPaymentCountdown(300);
+      setIsOrderExpired(false);
       clearCart();
 
       // 3. Yêu cầu cổng thanh toán theo đúng backend PaymentController (/api/v1/payments/request)
@@ -300,12 +316,57 @@ export const CheckoutPage = ({ onNavigate }) => {
     }
   };
 
+  const getRemainingSeconds = (order) => {
+    const targetOrder = order || createdOrder;
+    if (!targetOrder) return 300;
+    if (targetOrder._createdClientTime) {
+      const elapsed = Math.floor((Date.now() - targetOrder._createdClientTime) / 1000);
+      return Math.max(0, 300 - elapsed);
+    }
+    const raw = targetOrder.createdAt;
+    if (!raw) return 300;
+    const date = formatService.parseDate(raw);
+    if (!date || isNaN(date.getTime())) return 300;
+    const expireMs = date.getTime() + 5 * 60 * 1000;
+    return Math.max(0, Math.floor((expireMs - Date.now()) / 1000));
+  };
+
+  useEffect(() => {
+    if (!createdOrder || paymentSuccess || paymentData?.status === 'PAID' || createdOrder?.status === 'PAID' || paymentData?.status === 'FAILED' || createdOrder?.status === 'CANCELLED' || isOrderExpired) {
+      return;
+    }
+
+    const initialRemain = getRemainingSeconds(createdOrder);
+    setPaymentCountdown(initialRemain);
+    if (initialRemain <= 0) {
+      setIsOrderExpired(true);
+      if (createdOrder?.id) {
+        orderApi.cancel(createdOrder.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
+      }
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const remain = getRemainingSeconds(createdOrder);
+      setPaymentCountdown(remain);
+      if (remain <= 0) {
+        clearInterval(timer);
+        setIsOrderExpired(true);
+        if (createdOrder?.id) {
+          orderApi.cancel(createdOrder.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [createdOrder, paymentSuccess, paymentData?.status, isOrderExpired]);
+
   // ==========================================
   // MÀN HÌNH SAU KHI ĐẶT HÀNG THÀNH CÔNG
   // ==========================================
   if (createdOrder) {
-    const isPaid = paymentSuccess || paymentData?.status === 'PAID';
-    const isFailed = paymentData?.status === 'FAILED';
+    const isPaid = paymentSuccess || paymentData?.status === 'PAID' || createdOrder.status === 'PAID';
+    const isFailed = paymentData?.status === 'FAILED' || createdOrder.status === 'CANCELLED' || isOrderExpired;
     const isMomo = paymentData?.method === 'Momo';
     const isStripe = paymentData?.method === 'Stripe';
     const finalOrderCode = createdOrder.orderCode || `BL${createdOrder.id}`;
@@ -397,7 +458,6 @@ export const CheckoutPage = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* Trường hợp thanh toán thất bại */}
           {isFailed && (
             <div
               style={{
@@ -410,10 +470,12 @@ export const CheckoutPage = ({ onNavigate }) => {
               }}
             >
               <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#991b1b', marginBottom: '8px' }}>
-                Giao dịch không thành công
+                {isOrderExpired ? 'Đơn hàng đã tự động hủy' : 'Giao dịch không thành công'}
               </div>
               <p style={{ fontSize: '0.88rem', color: '#7f1d1d', margin: '0 0 16px', lineHeight: 1.5 }}>
-                Cổng thanh toán đã mô phỏng giao dịch thất bại (theo tỷ lệ 40% giả lập). Đơn hàng đã được đánh dấu hủy trong hệ thống để đảm bảo dữ liệu.
+                {isOrderExpired
+                  ? 'Đã hết thời gian chờ thanh toán (5 phút). Đơn hàng đã tự động hủy trong hệ thống để giải phóng nguyên liệu.'
+                  : 'Cổng thanh toán đã mô phỏng giao dịch thất bại (theo tỷ lệ 40% giả lập). Đơn hàng đã được đánh dấu hủy trong hệ thống để đảm bảo dữ liệu.'}
               </p>
               <button
                 type="button"
@@ -422,12 +484,52 @@ export const CheckoutPage = ({ onNavigate }) => {
                   setCreatedOrder(null);
                   setPaymentData(null);
                   setPaymentSuccess(false);
+                  setIsOrderExpired(false);
+                  setPaymentCountdown(300);
                   setErrorMsg('');
                 }}
                 style={{ padding: '10px 20px', borderRadius: '8px' }}
               >
                 Đặt lại đơn hàng mới
               </button>
+            </div>
+          )}
+
+          {!isPaid && !isFailed && (
+            <div
+              style={{
+                background: paymentCountdown <= 60 ? '#fef2f2' : '#fffbeb',
+                border: `1px solid ${paymentCountdown <= 60 ? '#fca5a5' : '#fde68a'}`,
+                borderRadius: '10px',
+                padding: '12px 18px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                color: paymentCountdown <= 60 ? '#b91c1c' : '#92400e',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+              }}
+            >
+              <span>Thời gian giữ đơn còn lại:</span>
+              <span
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '1.3rem',
+                  fontWeight: 800,
+                  color: paymentCountdown <= 60 ? '#dc2626' : '#b45309',
+                  background: '#ffffff',
+                  padding: '3px 12px',
+                  borderRadius: '6px',
+                  border: `1px solid ${paymentCountdown <= 60 ? '#fecaca' : '#fed7aa'}`,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  letterSpacing: '1px',
+                }}
+              >
+                {String(Math.floor(paymentCountdown / 60)).padStart(2, '0')}:
+                {String(paymentCountdown % 60).padStart(2, '0')}
+              </span>
             </div>
           )}
 
@@ -506,7 +608,7 @@ export const CheckoutPage = ({ onNavigate }) => {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <IconArrowLeft size={16} />
-              <span>Quay lại chọn thêm món</span>
+              <span>Đặt đơn mới</span>
             </button>
           </div>
         </div>
