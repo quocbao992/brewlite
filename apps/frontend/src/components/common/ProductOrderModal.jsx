@@ -180,11 +180,11 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
                 Giá gốc: {formatService.formatMoney(product.unitPrice || 0)}
               </div>
               {isOutOfStock ? (
-                <div style={{ marginTop: '4px', fontSize: '0.85rem', color: '#dc2626', fontWeight: 700 }}>
+                <div style={{ marginTop: '4px', display: 'inline-flex', fontSize: '0.78rem', color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '2px 8px', borderRadius: '6px', fontWeight: 500 }}>
                   Số lượng hiện tại: 0 (Hết hàng)
                 </div>
               ) : product.stock !== undefined && product.stock !== null ? (
-                <div style={{ marginTop: '4px', fontSize: '0.82rem', color: '#16a34a', fontWeight: 600 }}>
+                <div style={{ marginTop: '4px', fontSize: '0.82rem', color: '#16a34a', fontWeight: 500 }}>
                   Số lượng hiện tại: {product.stock}
                 </div>
               ) : null}
@@ -197,13 +197,13 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
           {isOutOfStock && (
             <div
               style={{
-                background: '#fee2e2',
-                border: '1px solid #fca5a5',
+                background: '#fef2f2',
+                border: '1px solid #fee2e2',
                 borderRadius: '8px',
                 padding: '10px 14px',
-                color: '#991b1b',
+                color: '#b91c1c',
                 fontSize: '0.88rem',
-                fontWeight: 600,
+                fontWeight: 500,
               }}
             >
               Sản phẩm hiện tại đã hết hàng (Số lượng hiện tại: 0). Vui lòng chọn món khác.

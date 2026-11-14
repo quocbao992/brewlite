@@ -155,12 +155,12 @@ export const CartPage = ({ onNavigate }) => {
                       <div>
                         <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{item.name}</div>
                         {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
-                          <div style={{ marginTop: '3px', fontSize: '0.8rem', color: '#dc2626', fontWeight: 700 }}>
+                          <div style={{ marginTop: '3px', display: 'inline-flex', fontSize: '0.78rem', color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '1px 6px', borderRadius: '4px', fontWeight: 500 }}>
                             Số lượng hiện tại: 0 (Hết hàng)
                           </div>
                         )}
                         {item.stock !== undefined && item.stock !== null && item.stock > 0 && item.quantity > item.stock && (
-                          <div style={{ marginTop: '3px', fontSize: '0.8rem', color: '#b45309', fontWeight: 700 }}>
+                          <div style={{ marginTop: '3px', display: 'inline-flex', fontSize: '0.78rem', color: '#b45309', background: '#fffbeb', border: '1px solid #fef3c7', padding: '1px 6px', borderRadius: '4px', fontWeight: 500 }}>
                             Không đủ hàng (Số lượng hiện tại: {item.stock})
                           </div>
                         )}

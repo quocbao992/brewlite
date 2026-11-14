@@ -73,13 +73,14 @@ export const ProductCard = ({ product, onNavigate }) => {
                   position: 'absolute',
                   top: '8px',
                   right: '8px',
-                  background: '#dc2626',
-                  color: '#ffffff',
+                  background: 'rgba(254, 226, 226, 0.92)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#ef4444',
+                  border: '1px solid #fecaca',
                   padding: '3px 8px',
-                  borderRadius: '6px',
+                  borderRadius: '999px',
                   fontSize: '0.75rem',
-                  fontWeight: 700,
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                  fontWeight: 600,
                 }}
               >
                 Hết hàng
@@ -91,12 +92,14 @@ export const ProductCard = ({ product, onNavigate }) => {
                   position: 'absolute',
                   top: '8px',
                   right: '8px',
-                  background: '#64748b',
-                  color: '#ffffff',
+                  background: 'rgba(241, 245, 249, 0.92)',
+                  backdropFilter: 'blur(4px)',
+                  color: '#64748b',
+                  border: '1px solid #e2e8f0',
                   padding: '3px 8px',
-                  borderRadius: '6px',
+                  borderRadius: '999px',
                   fontSize: '0.75rem',
-                  fontWeight: 700,
+                  fontWeight: 600,
                 }}
               >
                 Ngừng bán
@@ -123,7 +126,20 @@ export const ProductCard = ({ product, onNavigate }) => {
           </h3>
 
           {isOutOfStock ? (
-            <div style={{ fontSize: '0.82rem', color: '#dc2626', fontWeight: 700, marginBottom: '8px' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                fontSize: '0.78rem',
+                color: '#ef4444',
+                background: '#fef2f2',
+                border: '1px solid #fee2e2',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontWeight: 500,
+                marginBottom: '8px',
+              }}
+            >
               Số lượng hiện tại: 0 (Hết hàng)
             </div>
           ) : product.stock !== undefined && product.stock !== null ? (
