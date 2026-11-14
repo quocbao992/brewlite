@@ -52,6 +52,9 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
 
   if (!isOpen || !product) return null;
 
+  const isOutOfStock = product.stock !== undefined && product.stock !== null && product.stock <= 0;
+  const isDiscontinued = product.status === false;
+
   const sizeExtra = selectedSize === 'L' ? 10000 : selectedSize === 'M' ? 5000 : 0;
   const toppingsExtra = selectedToppings.reduce(
     (sum, t) => sum + (Number(t.unitPrice) || 0),
@@ -168,20 +171,44 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
 
         {/* Nội dung bên dưới */}
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Tên món và giá cơ bản */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 4px', color: 'var(--color-text-main, #1e293b)' }}>
                 {product.name}
               </h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #64748b)' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #64748b)' }}>
                 Giá gốc: {formatService.formatMoney(product.unitPrice || 0)}
-              </span>
+              </div>
+              {isOutOfStock ? (
+                <div style={{ marginTop: '4px', fontSize: '0.85rem', color: '#dc2626', fontWeight: 700 }}>
+                  Số lượng hiện tại: 0 (Hết hàng)
+                </div>
+              ) : product.stock !== undefined && product.stock !== null ? (
+                <div style={{ marginTop: '4px', fontSize: '0.82rem', color: '#16a34a', fontWeight: 600 }}>
+                  Số lượng hiện tại: {product.stock}
+                </div>
+              ) : null}
             </div>
             <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--color-accent, #c17838)' }}>
               {formatService.formatMoney(unitCalculatedPrice)}
             </div>
           </div>
+
+          {isOutOfStock && (
+            <div
+              style={{
+                background: '#fee2e2',
+                border: '1px solid #fca5a5',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                color: '#991b1b',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+              }}
+            >
+              Sản phẩm hiện tại đã hết hàng (Số lượng hiện tại: 0). Vui lòng chọn món khác.
+            </div>
+          )}
 
           {/* Chọn Size */}
           <div>
@@ -355,14 +382,16 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               </span>
               <button
                 type="button"
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={() => setQuantity((q) => (!product.stock || q < product.stock ? q + 1 : q))}
+                disabled={isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock)}
                 style={{
                   width: '36px',
                   height: '38px',
                   background: '#f8fafc',
                   border: 'none',
                   fontSize: '1.1rem',
-                  cursor: 'pointer',
+                  cursor: isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock) ? 'not-allowed' : 'pointer',
+                  opacity: isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock) ? 0.4 : 1,
                 }}
               >
                 +
@@ -373,6 +402,7 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               type="button"
               className="btn btn-primary"
               onClick={handleAddToCart}
+              disabled={isOutOfStock || isDiscontinued}
               style={{
                 flex: 1,
                 padding: '10px 16px',
@@ -382,11 +412,19 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                background: isOutOfStock || isDiscontinued ? '#94a3b8' : undefined,
+                cursor: isOutOfStock || isDiscontinued ? 'not-allowed' : 'pointer',
               }}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                 {isSuccess && <IconCheck size={16} />}
-                {isSuccess ? 'Đã thêm vào giỏ!' : 'Thêm vào giỏ hàng'}
+                {isDiscontinued
+                  ? 'Ngừng bán'
+                  : isOutOfStock
+                    ? 'Hết hàng (Số lượng: 0)'
+                    : isSuccess
+                      ? 'Đã thêm vào giỏ!'
+                      : 'Thêm vào giỏ hàng'}
               </span>
               <span>{formatService.formatMoney(totalPrice)}</span>
             </button>

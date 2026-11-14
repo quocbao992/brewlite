@@ -14,7 +14,10 @@ import vn.doancnpm.domain.Customer;
 import vn.doancnpm.domain.Order;
 import vn.doancnpm.domain.OrderItem;
 import vn.doancnpm.domain.OrderItemTopping;
+import vn.doancnpm.domain.Product;
+import vn.doancnpm.domain.Topping;
 import vn.doancnpm.dto.Request.CheckoutRequest;
+import vn.doancnpm.dto.Response.InventoryStockResponse;
 import vn.doancnpm.dto.Response.OrderResponse;
 import vn.doancnpm.repository.CartItemRepository;
 import vn.doancnpm.repository.CartRepository;
@@ -60,24 +63,51 @@ public class ICheckoutService implements CheckoutService {
 
         Map<Long, Integer> needProduct = new HashMap<>();
         Map<Long, Integer> needTopping = new HashMap<>();
+        Map<Long, Product> productMap = new HashMap<>();
+        Map<Long, Topping> toppingMap = new HashMap<>();
         for (CartItem ci : cartItems) {
             needProduct.merge(ci.getProduct().getId(), ci.getQuantity(), Integer::sum);
+            productMap.putIfAbsent(ci.getProduct().getId(), ci.getProduct());
             if (ci.getToppings() != null) {
                 for (CartItemTopping ct : ci.getToppings()) {
                     needTopping.merge(ct.getTopping().getId(), toppingAmount(ci, ct), Integer::sum);
+                    toppingMap.putIfAbsent(ct.getTopping().getId(), ct.getTopping());
                 }
             }
         }
         for (Map.Entry<Long, Integer> e : needProduct.entrySet()) {
             if (!productInventoryService.checkStockAvailable(e.getKey(), e.getValue())) {
-                throw new IllegalStateException("Sản phẩm ID " + e.getKey()
-                        + " không đủ hàng hoặc đã ngừng bán (cần " + e.getValue() + ")");
+                Product p = productMap.get(e.getKey());
+                String pName = p != null && p.getName() != null ? p.getName() : "ID " + e.getKey();
+                if (p == null || !p.isStatus()) {
+                    throw new IllegalStateException("Sản phẩm ID " + e.getKey() + " (\"" + pName + "\") đã ngừng bán");
+                }
+                int currentStock = productInventoryService.getAvailableStock(e.getKey());
+                if (currentStock <= 0) {
+                    throw new IllegalStateException("Sản phẩm ID " + e.getKey() + " (\"" + pName + "\") đã hết hàng (số lượng hiện tại: 0, cần " + e.getValue() + ")");
+                } else {
+                    throw new IllegalStateException("Sản phẩm ID " + e.getKey() + " (\"" + pName + "\") không đủ hàng (số lượng hiện tại: " + currentStock + ", cần " + e.getValue() + ")");
+                }
             }
         }
         for (Map.Entry<Long, Integer> e : needTopping.entrySet()) {
             if (!toppingInventoryService.checkStockAvailable(e.getKey(), e.getValue())) {
-                throw new IllegalStateException("Topping ID " + e.getKey()
-                        + " không đủ hàng hoặc đã ngừng bán (cần " + e.getValue() + ")");
+                Topping t = toppingMap.get(e.getKey());
+                String tName = t != null && t.getName() != null ? t.getName() : "ID " + e.getKey();
+                if (t == null || !Boolean.TRUE.equals(t.getStatus())) {
+                    throw new IllegalStateException("Topping ID " + e.getKey() + " (\"" + tName + "\") đã ngừng bán");
+                }
+                int currentStock = 0;
+                try {
+                    InventoryStockResponse stockRes = toppingInventoryService.getStock(e.getKey());
+                    currentStock = stockRes != null && stockRes.getStock() != null ? stockRes.getStock() : 0;
+                } catch (Exception ignored) {
+                }
+                if (currentStock <= 0) {
+                    throw new IllegalStateException("Topping ID " + e.getKey() + " (\"" + tName + "\") đã hết hàng (số lượng hiện tại: 0, cần " + e.getValue() + ")");
+                } else {
+                    throw new IllegalStateException("Topping ID " + e.getKey() + " (\"" + tName + "\") không đủ hàng (số lượng hiện tại: " + currentStock + ", cần " + e.getValue() + ")");
+                }
             }
         }
 

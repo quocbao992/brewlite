@@ -153,7 +153,17 @@ export const CartPage = ({ onNavigate }) => {
                         }}
                       />
                       <div>
-                        <div style={{ fontSize: '0.95rem' }}>{item.name}</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{item.name}</div>
+                        {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
+                          <div style={{ marginTop: '3px', fontSize: '0.8rem', color: '#dc2626', fontWeight: 700 }}>
+                            Số lượng hiện tại: 0 (Hết hàng)
+                          </div>
+                        )}
+                        {item.stock !== undefined && item.stock !== null && item.stock > 0 && item.quantity > item.stock && (
+                          <div style={{ marginTop: '3px', fontSize: '0.8rem', color: '#b45309', fontWeight: 700 }}>
+                            Không đủ hàng (Số lượng hiện tại: {item.stock})
+                          </div>
+                        )}
                         {item.toppings && item.toppings.length > 0 && (
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                             Topping: {item.toppings.map((t) => t.name).join(', ')}

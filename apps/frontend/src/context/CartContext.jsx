@@ -59,6 +59,7 @@ export const CartProvider = ({ children }) => {
             toppings: itemToppings,
             toppingsSummary,
             itemTotalPrice: item.itemTotalPrice || finalUnitPrice * item.quantity,
+            stock: item.stock !== undefined ? item.stock : null,
           };
         });
         setCartItems(mapped);
@@ -87,6 +88,7 @@ export const CartProvider = ({ children }) => {
       toppings: selectedToppings || [],
       toppingsSummary,
       itemTotalPrice: finalUnitPrice * quantity,
+      stock: product.stock !== undefined && product.stock !== null ? product.stock : null,
     };
 
     setCartItems((prevItems) => {
@@ -106,6 +108,7 @@ export const CartProvider = ({ children }) => {
           ...current,
           quantity: newQty,
           itemTotalPrice: current.unitPrice * newQty,
+          stock: product.stock !== undefined && product.stock !== null ? product.stock : current.stock,
         };
         return updated;
       }

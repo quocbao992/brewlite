@@ -5,6 +5,8 @@ import ProductOrderModal from './ProductOrderModal';
 
 export const ProductCard = ({ product, onNavigate }) => {
   const [showModal, setShowModal] = useState(false);
+  const isOutOfStock = product.stock !== undefined && product.stock !== null && product.stock <= 0;
+  const isDiscontinued = product.status === false;
 
   return (
     <>
@@ -65,16 +67,50 @@ export const ProductCard = ({ product, onNavigate }) => {
                 {product.categoryName}
               </span>
             )}
+            {isOutOfStock && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                }}
+              >
+                Hết hàng
+              </span>
+            )}
+            {isDiscontinued && !isOutOfStock && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: '#64748b',
+                  color: '#ffffff',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                }}
+              >
+                Ngừng bán
+              </span>
+            )}
           </div>
 
-          {/* Tên món - không tự ý in đậm quá mức, dùng chữ vừa vặn thanh lịch */}
           <h3
             className="card-title"
             style={{
               fontSize: '1rem',
               fontWeight: 500,
               color: 'var(--color-text-main, #1e293b)',
-              marginBottom: '8px',
+              marginBottom: '4px',
               lineHeight: 1.4,
               minHeight: '2.8em',
               display: '-webkit-box',
@@ -85,9 +121,18 @@ export const ProductCard = ({ product, onNavigate }) => {
           >
             {product.name}
           </h3>
+
+          {isOutOfStock ? (
+            <div style={{ fontSize: '0.82rem', color: '#dc2626', fontWeight: 700, marginBottom: '8px' }}>
+              Số lượng hiện tại: 0 (Hết hàng)
+            </div>
+          ) : product.stock !== undefined && product.stock !== null ? (
+            <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>
+              Số lượng hiện tại: {product.stock}
+            </div>
+          ) : null}
         </div>
 
-        {/* Chân card: Giá tiền và Nút "Đặt món" */}
         <div
           className="card-meta"
           style={{
@@ -104,7 +149,7 @@ export const ProductCard = ({ product, onNavigate }) => {
             style={{
               fontSize: '1.05rem',
               fontWeight: 600,
-              color: 'var(--color-accent, #c17838)',
+              color: isOutOfStock ? '#94a3b8' : 'var(--color-accent, #c17838)',
             }}
           >
             {formatService.formatMoney(product.unitPrice || 0)}
@@ -113,15 +158,19 @@ export const ProductCard = ({ product, onNavigate }) => {
             type="button"
             className="btn btn-sm btn-primary"
             onClick={() => setShowModal(true)}
-            disabled={!product.status}
+            disabled={isDiscontinued || isOutOfStock}
             style={{
               padding: '6px 14px',
               borderRadius: '8px',
               fontSize: '0.85rem',
               fontWeight: 500,
+              background: isDiscontinued || isOutOfStock ? '#e2e8f0' : undefined,
+              color: isDiscontinued || isOutOfStock ? '#64748b' : undefined,
+              borderColor: isDiscontinued || isOutOfStock ? '#cbd5e1' : undefined,
+              cursor: isDiscontinued || isOutOfStock ? 'not-allowed' : 'pointer',
             }}
           >
-            {product.status ? 'Đặt món' : 'Tạm hết'}
+            {isDiscontinued ? 'Ngừng bán' : isOutOfStock ? 'Hết hàng' : 'Đặt món'}
           </button>
         </div>
       </div>

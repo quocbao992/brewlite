@@ -913,6 +913,16 @@ export const CheckoutPage = ({ onNavigate }) => {
                     <div style={{ fontSize: '0.92rem', fontWeight: 600 }}>
                       {item.name} <span style={{ color: 'var(--color-accent)' }}>x {item.quantity}</span>
                     </div>
+                    {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
+                      <div style={{ marginTop: '3px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 700 }}>
+                        Số lượng hiện tại: 0 (Hết hàng)
+                      </div>
+                    )}
+                    {item.stock !== undefined && item.stock !== null && item.stock > 0 && item.quantity > item.stock && (
+                      <div style={{ marginTop: '3px', fontSize: '0.78rem', color: '#b45309', fontWeight: 700 }}>
+                        Không đủ hàng (Số lượng hiện tại: {item.stock})
+                      </div>
+                    )}
                     <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                       Size {item.size} {item.toppings?.length > 0 ? `• Topping: ${item.toppings.map((t) => t.name).join(', ')}` : ''}
                     </div>

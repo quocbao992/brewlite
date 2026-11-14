@@ -4,7 +4,7 @@ import { formatService } from '../services/formatService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import WeatherWidget from '../components/common/WeatherWidget';
 import { useAuth } from '../context/AuthContext';
-import { IconLock, IconClock, IconClose } from '../components/common/Icons';
+import { IconLock, IconClock, IconClose, IconAlert } from '../components/common/Icons';
 
 // Helper trích xuất mảng an toàn tuyệt đối
 const safeExtractArray = (res) => {
@@ -86,6 +86,8 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
   const [promotionSearch, setPromotionSearch] = useState('');
   const [showAddPromotionModal, setShowAddPromotionModal] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState(null);
+  const [promotionToDelete, setPromotionToDelete] = useState(null);
+  const [deletingPromotion, setDeletingPromotion] = useState(false);
   const [promotionForm, setPromotionForm] = useState({
     code: '',
     description: '',
@@ -612,14 +614,18 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
     }
   };
 
-  const handleDeletePromotion = async (promo) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn mã khuyến mãi "${promo.code}"?`)) return;
+  const handleConfirmDeletePromotion = async () => {
+    if (!promotionToDelete) return;
+    setDeletingPromotion(true);
     try {
-      await promotionApi.delete(promo.id);
-      showNotification(`Đã xóa mã khuyến mãi ${promo.code}`);
+      await promotionApi.delete(promotionToDelete.id);
+      showNotification(`Đã xóa vĩnh viễn mã khuyến mãi ${promotionToDelete.code}`);
+      setPromotionToDelete(null);
       loadDataForTab('promotions');
     } catch (err) {
       showNotification(err.message || 'Lỗi xóa mã khuyến mãi', 'error');
+    } finally {
+      setDeletingPromotion(false);
     }
   };
 
@@ -1599,8 +1605,17 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                             </div>
                           </td>
                           <td style={{ padding: '12px 16px' }}>
-                            <span style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 700, background: '#f0fdf4', color: '#15803d' }}>
-                              {prod.stock ?? 0}
+                            <span
+                              style={{
+                                padding: '3px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                background: (prod.stock ?? 0) <= 0 ? '#fee2e2' : '#f0fdf4',
+                                color: (prod.stock ?? 0) <= 0 ? '#dc2626' : '#15803d',
+                              }}
+                            >
+                              {(prod.stock ?? 0) <= 0 ? '0 (Hết hàng)' : prod.stock}
                             </span>
                           </td>
                           <td style={{ padding: '12px 16px' }}>
@@ -2478,7 +2493,7 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                                   </button>
                                   <button
                                     className="btn btn-sm btn-secondary"
-                                    onClick={() => handleDeletePromotion(promo)}
+                                    onClick={() => setPromotionToDelete(promo)}
                                     style={{ padding: '4px 10px', borderRadius: '6px', color: '#ef4444' }}
                                     title="Xóa mã khuyến mãi"
                                   >
@@ -2666,6 +2681,128 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {promotionToDelete && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px',
+                  }}
+                  onClick={() => !deletingPromotion && setPromotionToDelete(null)}
+                >
+                  <div
+                    style={{
+                      background: '#fff',
+                      borderRadius: '16px',
+                      padding: '28px 24px',
+                      maxWidth: '440px',
+                      width: '100%',
+                      textAlign: 'center',
+                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '50%',
+                        background: '#fee2e2',
+                        color: '#dc2626',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 16px',
+                      }}
+                    >
+                      <IconAlert size={28} color="#dc2626" />
+                    </div>
+
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 8px', color: '#1e293b' }}>
+                      Xác nhận xóa mã khuyến mãi?
+                    </h3>
+
+                    <p style={{ color: '#64748b', fontSize: '0.92rem', margin: '0 0 16px', lineHeight: 1.5 }}>
+                      Bạn có chắc chắn muốn xóa vĩnh viễn mã khuyến mãi{' '}
+                      <strong style={{ color: '#dc2626', background: '#fee2e2', padding: '2px 8px', borderRadius: '4px' }}>
+                        {promotionToDelete.code}
+                      </strong>
+                      ? Thao tác này không thể hoàn tác.
+                    </p>
+
+                    <div
+                      style={{
+                        background: '#f8fafc',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        marginBottom: '20px',
+                        fontSize: '0.86rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#64748b' }}>Mô tả:</span>
+                        <strong style={{ color: '#334155' }}>{promotionToDelete.description || 'Không có mô tả'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#64748b' }}>Mức giảm:</span>
+                        <strong style={{ color: 'var(--color-primary)' }}>
+                          {promotionToDelete.discountType === 'PERCENT'
+                            ? `Giảm ${promotionToDelete.discountValue}%`
+                            : `Giảm ${formatService.formatCurrency(promotionToDelete.discountValue)}`}
+                        </strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#64748b' }}>Lượt đã dùng:</span>
+                        <strong style={{ color: '#334155' }}>
+                          {promotionToDelete.usedCount || 0}
+                          {promotionToDelete.usageLimit ? ` / ${promotionToDelete.usageLimit} lượt` : ' / Không giới hạn'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setPromotionToDelete(null)}
+                        disabled={deletingPromotion}
+                        style={{ flex: 1, padding: '10px' }}
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmDeletePromotion}
+                        disabled={deletingPromotion}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          background: '#dc2626',
+                          color: '#fff',
+                          border: 'none',
+                          fontWeight: 700,
+                          cursor: deletingPromotion ? 'not-allowed' : 'pointer',
+                          opacity: deletingPromotion ? 0.7 : 1,
+                        }}
+                      >
+                        {deletingPromotion ? 'Đang xóa...' : 'Xóa vĩnh viễn'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
