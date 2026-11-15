@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatService } from '../../services/formatService';
@@ -6,12 +6,12 @@ import { resolveProductImage, defaultCoffeeImg } from '../../images';
 import { toppingApi } from '../../api';
 import { IconClose, IconCheck } from './Icons';
 
-// Cache topping trong bộ nhớ để không phải gọi API lặp đi lặp lại
 let cachedToppings = null;
 
 export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
   const { isAuthenticated } = useAuth();
   const { addToCart } = useCart();
+  const isSubmittingRef = useRef(false);
 
   const [selectedSize, setSelectedSize] = useState('M');
   const [selectedToppings, setSelectedToppings] = useState([]);
@@ -23,6 +23,7 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
 
   useEffect(() => {
     if (!isOpen || !product) return;
+    isSubmittingRef.current = false;
     setSelectedSize('M');
     setSelectedToppings([]);
     setQuantity(1);
@@ -74,18 +75,25 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
   };
 
   const handleAddToCart = () => {
+    if (isSubmittingRef.current || isSuccess) {
+      return;
+    }
+
     if (!isAuthenticated) {
       onClose();
       if (onNavigate) onNavigate('login');
       return;
     }
 
-    addToCart(product, quantity, selectedSize, note.trim(), selectedToppings);
+    isSubmittingRef.current = true;
     setIsSuccess(true);
+    addToCart(product, quantity, selectedSize, note.trim(), selectedToppings);
+
     setTimeout(() => {
       setIsSuccess(false);
+      isSubmittingRef.current = false;
       onClose();
-    }, 600);
+    }, 450);
   };
 
   return (
@@ -179,15 +187,6 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #64748b)' }}>
                 Giá gốc: {formatService.formatMoney(product.unitPrice || 0)}
               </div>
-              {isOutOfStock ? (
-                <div style={{ marginTop: '4px', display: 'inline-flex', fontSize: '0.78rem', color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '2px 8px', borderRadius: '6px', fontWeight: 500 }}>
-                  Số lượng hiện tại: 0 (Hết hàng)
-                </div>
-              ) : product.stock !== undefined && product.stock !== null ? (
-                <div style={{ marginTop: '4px', fontSize: '0.82rem', color: '#16a34a', fontWeight: 500 }}>
-                  Số lượng hiện tại: {product.stock}
-                </div>
-              ) : null}
             </div>
             <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--color-accent, #c17838)' }}>
               {formatService.formatMoney(unitCalculatedPrice)}
@@ -206,7 +205,7 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
                 fontWeight: 500,
               }}
             >
-              Sản phẩm hiện tại đã hết hàng (Số lượng hiện tại: 0). Vui lòng chọn món khác.
+              Sản phẩm hiện tại đã hết hàng. Vui lòng chọn món khác.
             </div>
           )}
 
@@ -366,13 +365,15 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={isSuccess || isOutOfStock || quantity <= 1}
                 style={{
                   width: '36px',
                   height: '38px',
                   background: '#f8fafc',
                   border: 'none',
                   fontSize: '1.1rem',
-                  cursor: 'pointer',
+                  cursor: isSuccess || isOutOfStock || quantity <= 1 ? 'not-allowed' : 'pointer',
+                  opacity: isSuccess || isOutOfStock || quantity <= 1 ? 0.4 : 1,
                 }}
               >
                 -
@@ -383,15 +384,15 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               <button
                 type="button"
                 onClick={() => setQuantity((q) => (!product.stock || q < product.stock ? q + 1 : q))}
-                disabled={isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock)}
+                disabled={isSuccess || isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock)}
                 style={{
                   width: '36px',
                   height: '38px',
                   background: '#f8fafc',
                   border: 'none',
                   fontSize: '1.1rem',
-                  cursor: isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock) ? 'not-allowed' : 'pointer',
-                  opacity: isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock) ? 0.4 : 1,
+                  cursor: isSuccess || isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock) ? 'not-allowed' : 'pointer',
+                  opacity: isSuccess || isOutOfStock || (product.stock !== undefined && product.stock !== null && quantity >= product.stock) ? 0.4 : 1,
                 }}
               >
                 +
@@ -402,7 +403,7 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
               type="button"
               className="btn btn-primary"
               onClick={handleAddToCart}
-              disabled={isOutOfStock || isDiscontinued}
+              disabled={isOutOfStock || isDiscontinued || isSuccess}
               style={{
                 flex: 1,
                 padding: '10px 16px',
@@ -412,8 +413,14 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                background: isOutOfStock || isDiscontinued ? '#94a3b8' : undefined,
-                cursor: isOutOfStock || isDiscontinued ? 'not-allowed' : 'pointer',
+                background: isOutOfStock || isDiscontinued
+                  ? '#94a3b8'
+                  : isSuccess
+                    ? '#16a34a'
+                    : undefined,
+                borderColor: isSuccess ? '#15803d' : undefined,
+                cursor: isOutOfStock || isDiscontinued || isSuccess ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -421,7 +428,7 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
                 {isDiscontinued
                   ? 'Ngừng bán'
                   : isOutOfStock
-                    ? 'Hết hàng (Số lượng: 0)'
+                    ? 'Hết hàng'
                     : isSuccess
                       ? 'Đã thêm vào giỏ!'
                       : 'Thêm vào giỏ hàng'}

@@ -124,29 +124,6 @@ export const ProductCard = ({ product, onNavigate }) => {
           >
             {product.name}
           </h3>
-
-          {isOutOfStock ? (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontSize: '0.78rem',
-                color: '#ef4444',
-                background: '#fef2f2',
-                border: '1px solid #fee2e2',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontWeight: 500,
-                marginBottom: '8px',
-              }}
-            >
-              Số lượng hiện tại: 0 (Hết hàng)
-            </div>
-          ) : product.stock !== undefined && product.stock !== null ? (
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '8px' }}>
-              Số lượng hiện tại: {product.stock}
-            </div>
-          ) : null}
         </div>
 
         <div

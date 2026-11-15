@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   IconHome,
   IconGrid,
@@ -13,6 +13,17 @@ import { useCart } from '../../context/CartContext';
 export const CustomerBottomDock = ({ currentTab, onNavigate }) => {
   const { isAuthenticated, isAdmin, isBarista, user } = useAuth();
   const { totalItems } = useCart();
+  const [isBouncing, setIsBouncing] = useState(false);
+  const prevItemsRef = useRef(totalItems);
+
+  useEffect(() => {
+    if (totalItems > prevItemsRef.current) {
+      setIsBouncing(true);
+      const timer = setTimeout(() => setIsBouncing(false), 450);
+      return () => clearTimeout(timer);
+    }
+    prevItemsRef.current = totalItems;
+  }, [totalItems]);
 
   return (
     <div className="customer-bottom-dock" role="navigation" aria-label="Thanh điều hướng người dùng">
@@ -57,13 +68,13 @@ export const CustomerBottomDock = ({ currentTab, onNavigate }) => {
       {/* 4. Giỏ hàng */}
       <button
         type="button"
-        className={`tool-square-btn ${currentTab === 'cart' ? 'active' : ''}`}
+        className={`tool-square-btn ${currentTab === 'cart' ? 'active' : ''} ${isBouncing ? 'cart-bounce' : ''}`}
         onClick={() => onNavigate('cart')}
         aria-label="Giỏ hàng"
         title={`Giỏ hàng ${totalItems > 0 ? `(${totalItems})` : ''}`}
       >
         <IconCart size={22} />
-        {totalItems > 0 && <span className="tool-badge">{totalItems > 99 ? '99+' : totalItems}</span>}
+        {totalItems > 0 && <span className={`tool-badge ${isBouncing ? 'cart-bounce' : ''}`}>{totalItems > 99 ? '99+' : totalItems}</span>}
         <span className="dock-tooltip dock-tooltip-top">
           Giỏ hàng {totalItems > 0 ? `(${totalItems})` : ''}
         </span>

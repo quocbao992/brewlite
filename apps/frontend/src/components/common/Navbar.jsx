@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { IconShield } from './Icons';
@@ -6,6 +6,17 @@ import { IconShield } from './Icons';
 export const Navbar = ({ currentTab, onNavigate }) => {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const { totalItems } = useCart();
+  const [isBouncing, setIsBouncing] = useState(false);
+  const prevItemsRef = useRef(totalItems);
+
+  useEffect(() => {
+    if (totalItems > prevItemsRef.current) {
+      setIsBouncing(true);
+      const timer = setTimeout(() => setIsBouncing(false), 450);
+      return () => clearTimeout(timer);
+    }
+    prevItemsRef.current = totalItems;
+  }, [totalItems]);
 
   return (
     <nav className="navbar">
@@ -44,7 +55,7 @@ export const Navbar = ({ currentTab, onNavigate }) => {
           )}
 
           <button
-            className="cart-btn"
+            className={`cart-btn ${isBouncing ? 'cart-bounce' : ''}`}
             title="Xem giỏ hàng"
             onClick={() => onNavigate('cart')}
           >
@@ -62,7 +73,11 @@ export const Navbar = ({ currentTab, onNavigate }) => {
               <circle cx="20" cy="21" r="1" />
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
             </svg>
-            {totalItems > 0 && <span className="cart-count">{totalItems}</span>}
+            {totalItems > 0 && (
+              <span className={`cart-count ${isBouncing ? 'cart-bounce' : ''}`}>
+                {totalItems}
+              </span>
+            )}
           </button>
 
           {isAuthenticated ? (

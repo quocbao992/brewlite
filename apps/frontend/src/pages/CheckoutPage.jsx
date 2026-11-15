@@ -477,21 +477,6 @@ export const CheckoutPage = ({ onNavigate }) => {
                   ? 'Đã hết thời gian chờ thanh toán (5 phút). Đơn hàng đã tự động hủy trong hệ thống để giải phóng nguyên liệu.'
                   : 'Cổng thanh toán đã mô phỏng giao dịch thất bại (theo tỷ lệ 40% giả lập). Đơn hàng đã được đánh dấu hủy trong hệ thống để đảm bảo dữ liệu.'}
               </p>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setCreatedOrder(null);
-                  setPaymentData(null);
-                  setPaymentSuccess(false);
-                  setIsOrderExpired(false);
-                  setPaymentCountdown(300);
-                  setErrorMsg('');
-                }}
-                style={{ padding: '10px 20px', borderRadius: '8px' }}
-              >
-                Đặt lại đơn hàng mới
-              </button>
             </div>
           )}
 
