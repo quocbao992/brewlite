@@ -294,11 +294,25 @@ export const CheckoutPage = ({ onNavigate }) => {
 
       if (simulatedResult === 'SUCCESS') {
         try {
-          await orderApi.confirmOrder(paymentData.orderId);
-        } catch {}
-        setPaymentSuccess(true);
-        setPaymentData((prev) => (prev ? { ...prev, status: 'PAID' } : null));
-        setCreatedOrder((prev) => (prev ? { ...prev, status: 'PAID' } : null));
+          const updated = await orderApi.confirmOrder(paymentData.orderId);
+          setPaymentSuccess(true);
+          setPaymentData((prev) => (prev ? { ...prev, status: 'PAID' } : null));
+          setCreatedOrder(updated || ((prev) => (prev ? { ...prev, status: 'PAID' } : null)));
+        } catch (confirmErr) {
+          console.error('Lỗi khi xác nhận thanh toán backend:', confirmErr);
+          const msg =
+            confirmErr?.response?.data?.message ||
+            confirmErr?.message ||
+            'Xác nhận thanh toán thất bại.';
+          setErrorMsg(msg);
+          if (msg.includes('hết hạn') || msg.includes('quá 5 phút')) {
+            setIsOrderExpired(true);
+            setPaymentSuccess(false);
+            setPaymentData((prev) => (prev ? { ...prev, status: 'FAILED' } : null));
+            setCreatedOrder((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
+          }
+          return;
+        }
       } else {
         setPaymentSuccess(false);
         setPaymentData((prev) => (prev ? { ...prev, status: 'FAILED' } : null));
@@ -323,12 +337,10 @@ export const CheckoutPage = ({ onNavigate }) => {
       const elapsed = Math.floor((Date.now() - targetOrder._createdClientTime) / 1000);
       return Math.max(0, 300 - elapsed);
     }
-    const raw = targetOrder.createdAt;
-    if (!raw) return 300;
-    const date = formatService.parseDate(raw);
-    if (!date || isNaN(date.getTime())) return 300;
-    const expireMs = date.getTime() + 5 * 60 * 1000;
-    return Math.max(0, Math.floor((expireMs - Date.now()) / 1000));
+    if (targetOrder.createdAt) {
+      return formatService.getOrderRemainingSeconds(targetOrder.createdAt);
+    }
+    return 300;
   };
 
   useEffect(() => {
@@ -340,9 +352,6 @@ export const CheckoutPage = ({ onNavigate }) => {
     setPaymentCountdown(initialRemain);
     if (initialRemain <= 0) {
       setIsOrderExpired(true);
-      if (createdOrder?.id) {
-        orderApi.cancel(createdOrder.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
-      }
       return;
     }
 
@@ -352,9 +361,6 @@ export const CheckoutPage = ({ onNavigate }) => {
       if (remain <= 0) {
         clearInterval(timer);
         setIsOrderExpired(true);
-        if (createdOrder?.id) {
-          orderApi.cancel(createdOrder.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
-        }
       }
     }, 1000);
 

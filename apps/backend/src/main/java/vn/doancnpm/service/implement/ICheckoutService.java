@@ -207,9 +207,15 @@ public class ICheckoutService implements CheckoutService {
             throw new IllegalStateException("Đơn không ở trạng thái có thể xác nhận thanh toán");
         }
 
-        if (order.getCreatedAt() != null && order.getCreatedAt().isBefore(java.time.LocalDateTime.now().minusMinutes(5))) {
-            orderService.cancel(orderId, "Hết thời gian chờ thanh toán (quá 5 phút)");
-            throw new IllegalStateException("Đơn hàng đã hết hạn thanh toán (quá 5 phút) và đã bị tự động hủy");
+        if (order.getCreatedAt() != null) {
+            long diffLocal = Math.abs(java.time.temporal.ChronoUnit.SECONDS.between(order.getCreatedAt(), java.time.LocalDateTime.now()));
+            long diffUtc = Math.abs(java.time.temporal.ChronoUnit.SECONDS.between(order.getCreatedAt(), java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)));
+            long elapsedSeconds = Math.min(diffLocal, diffUtc);
+
+            if (elapsedSeconds > 300) {
+                orderService.cancel(orderId, "Hết thời gian chờ thanh toán (quá 5 phút)");
+                throw new IllegalStateException("Đơn hàng đã hết hạn thanh toán (quá 5 phút) và đã bị tự động hủy");
+            }
         }
 
         for (OrderItem oi : order.getItems()) {
