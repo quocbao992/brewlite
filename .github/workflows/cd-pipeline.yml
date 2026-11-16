@@ -142,6 +142,9 @@ jobs:
     name: Deploy
     needs: push-registry
     runs-on: ubuntu-latest
+    environment:
+      name: Production
+      url: https://brewlite-olive.vercel.app
 
     steps:
       - name: Lấy mã nguồn
