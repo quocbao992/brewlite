@@ -1,9 +1,9 @@
 package vn.doancnpm.config;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,14 +11,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import vn.doancnpm.domain.User;
 import vn.doancnpm.repository.UserRepository;
 import vn.doancnpm.service.AuthService;
 import vn.doancnpm.service.JWTUtils;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -34,8 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
 
@@ -70,14 +71,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     User user = userRepository.findByUsername(username).orElse(null);
                     if (user != null && user.isStatus()) {
                         String role = user.getRole();
-                        String roleAuthority = role != null && role.startsWith("ROLE_") ? role : "ROLE_" + (role != null ? role : "CUSTOMER");
-                        List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(roleAuthority));
+                        String roleAuthority = role != null && role.startsWith("ROLE_") ? role
+                                : "ROLE_" + (role != null ? role : "CUSTOMER");
+                        List<SimpleGrantedAuthority> authorities = Collections
+                                .singletonList(new SimpleGrantedAuthority(roleAuthority));
 
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 user.getUsername(),
                                 null,
-                                authorities
-                        );
+                                authorities);
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
