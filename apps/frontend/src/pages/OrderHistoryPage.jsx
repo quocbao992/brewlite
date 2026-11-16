@@ -34,11 +34,7 @@ export const OrderHistoryPage = ({ onNavigate }) => {
   }, []);
 
   const getOrderRemainingSeconds = (createdAt) => {
-    if (!createdAt) return 0;
-    const date = formatService.parseDate(createdAt);
-    if (!date || isNaN(date.getTime())) return 0;
-    const expireMs = date.getTime() + 5 * 60 * 1000;
-    return Math.max(0, Math.floor((expireMs - nowTick) / 1000));
+    return formatService.getOrderRemainingSeconds(createdAt, nowTick);
   };
 
   const formatCountdown = (secs) => {
@@ -51,14 +47,10 @@ export const OrderHistoryPage = ({ onNavigate }) => {
     let hasExpired = false;
     orders.forEach((o) => {
       if (o.status === 'PENDING' && o.createdAt) {
-        const date = formatService.parseDate(o.createdAt);
-        if (date && !isNaN(date.getTime())) {
-          const remain = getOrderRemainingSeconds(o.createdAt);
-          if (remain <= 0) {
-            hasExpired = true;
-            orderApi.cancel(o.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
-            o.status = 'CANCELLED';
-          }
+        const remain = getOrderRemainingSeconds(o.createdAt);
+        if (remain <= 0 && !o.isLocallyExpired) {
+          hasExpired = true;
+          o.isLocallyExpired = true;
         }
       }
     });
@@ -163,13 +155,23 @@ export const OrderHistoryPage = ({ onNavigate }) => {
       if (simulatedResult === 'SUCCESS') {
         try {
           await orderApi.confirmOrder(order.id);
-        } catch {}
-        setPaymentMsg('Thanh toán thành công! Trạng thái đơn đã được cập nhật.');
-        setTimeout(() => {
-          setPaymentModalOrder(null);
-          setPaymentMsg('');
-          loadOrders();
-        }, 1200);
+          setPaymentMsg('Thanh toán thành công! Trạng thái đơn đã được cập nhật.');
+          setTimeout(() => {
+            setPaymentModalOrder(null);
+            setPaymentMsg('');
+            loadOrders();
+          }, 1200);
+        } catch (confirmErr) {
+          console.error('Lỗi khi xác nhận thanh toán backend:', confirmErr);
+          const msg =
+            confirmErr?.response?.data?.message ||
+            confirmErr?.message ||
+            'Xác nhận thanh toán thất bại.';
+          setPaymentMsg(msg);
+          setTimeout(() => {
+            loadOrders();
+          }, 2000);
+        }
       } else {
         try {
           await orderApi.cancel(order.id, 'Thanh toán thất bại');

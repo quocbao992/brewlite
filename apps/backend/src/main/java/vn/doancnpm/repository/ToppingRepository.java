@@ -10,5 +10,6 @@ import vn.doancnpm.domain.Topping;
 public interface ToppingRepository extends JpaRepository<Topping, Long> {
     List<Topping> findByStatus(boolean status);
     Optional<Topping> findById(Long id);
-    
+    boolean existsByNameIgnoreCase(String name);
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

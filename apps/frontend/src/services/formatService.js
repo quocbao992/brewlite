@@ -26,6 +26,32 @@ export const formatService = {
     return isNaN(date.getTime()) ? new Date(str) : date;
   },
 
+  getOrderRemainingSeconds(createdAt, now = Date.now()) {
+    if (!createdAt) return 0;
+    const str = String(createdAt).trim();
+    if (!str) return 0;
+
+    const parsedUtc = new Date(str.endsWith('Z') ? str : `${str}Z`).getTime();
+    const parsedLocal = new Date(str.replace(/Z$/, '')).getTime();
+
+    const diffUtc = Math.floor((now - parsedUtc) / 1000);
+    const diffLocal = Math.floor((now - parsedLocal) / 1000);
+
+    let actualElapsed = Math.min(
+      diffUtc >= 0 ? diffUtc : Infinity,
+      diffLocal >= 0 ? diffLocal : Infinity
+    );
+
+    if (!isFinite(actualElapsed)) {
+      actualElapsed = Math.min(Math.abs(diffUtc), Math.abs(diffLocal));
+    }
+    if (isNaN(actualElapsed) || actualElapsed < 0) {
+      actualElapsed = 0;
+    }
+
+    return Math.max(0, 300 - actualElapsed);
+  },
+
   formatDateTime(dateStr) {
     if (!dateStr) return '';
     try {
