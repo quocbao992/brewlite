@@ -100,6 +100,45 @@ export const formatService = {
     if (m.includes('STRIPE')) return 'Thẻ quốc tế (Stripe)';
     return method;
   },
+
+  getToppingAvailability(topping) {
+    if (!topping) {
+      return { isOutOfStock: false, isDiscontinued: false, isDisabled: false, label: null };
+    }
+    const isDiscontinued = topping.status === false;
+    const isOutOfStock = topping.stock !== undefined && topping.stock !== null && Number(topping.stock) <= 0;
+    const isDisabled = isDiscontinued || isOutOfStock;
+    const label = isOutOfStock ? 'Hết hàng' : isDiscontinued ? 'Ngừng bán' : null;
+    return { isOutOfStock, isDiscontinued, isDisabled, label };
+  },
+
+  buildToppingMap(toppingRes) {
+    const list = Array.isArray(toppingRes) ? toppingRes : toppingRes?.data || [];
+    const map = {};
+    list.forEach((tp) => {
+      if (tp?.id != null) {
+        map[tp.id] = tp;
+      }
+    });
+    return map;
+  },
+
+  getUnavailableToppings(itemToppings, toppingMap = {}) {
+    if (!Array.isArray(itemToppings) || itemToppings.length === 0) return [];
+    return itemToppings
+      .map((t) => {
+        const id = t.id || t.toppingId;
+        const live = id != null && toppingMap[id] ? toppingMap[id] : t;
+        const availability = this.getToppingAvailability(live);
+        if (!availability.isDisabled) return null;
+        return {
+          id,
+          name: live.name || t.name,
+          ...availability,
+        };
+      })
+      .filter(Boolean);
+  },
 };
 
 export default formatService;

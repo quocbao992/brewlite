@@ -128,6 +128,7 @@ public class ICheckoutService implements CheckoutService {
             oi.setProductImage(ci.getProduct().getImgURL());
             oi.setSize(ci.getSize().name());
             oi.setQuantity(ci.getQuantity());
+            oi.setNote(ci.getNote());
 
             BigDecimal itemPrice = ci.getUnitPrice();
             if (itemPrice == null) {

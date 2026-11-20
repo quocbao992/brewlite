@@ -467,6 +467,11 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                                 <span> • Topping: {item.toppings.map((t) => t.toppingName || t.name || t).join(', ')}</span>
                               )}
                             </div>
+                            {item.note && (
+                              <div style={{ fontSize: '0.78rem', color: '#92400e', fontStyle: 'italic', marginTop: '2px' }}>
+                                Ghi chú: {item.note}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -478,6 +483,11 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                   ) : (
                     <div style={{ fontSize: '0.88rem', color: '#64748b', fontStyle: 'italic', padding: '6px 0' }}>
                       Tổng số lượng món: {order.totalItems || 1} món
+                    </div>
+                  )}
+                  {order.note && (
+                    <div style={{ marginTop: '8px', padding: '6px 10px', background: '#fef3c7', color: '#92400e', borderRadius: '6px', fontSize: '0.82rem' }}>
+                      <strong>Ghi chú đơn hàng:</strong> {order.note}
                     </div>
                   )}
                 </div>
@@ -744,6 +754,9 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                           {item.toppings && item.toppings.length > 0 && (
                             <div>Topping: {item.toppings.map((t) => t.name || t.toppingName || t).join(', ')}</div>
                           )}
+                          {item.note && (
+                            <div style={{ color: '#92400e', fontStyle: 'italic' }}>Ghi chú: {item.note}</div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -759,6 +772,12 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                 </div>
               )}
             </div>
+
+            {selectedOrderDetail.note && (
+              <div style={{ marginBottom: '16px', padding: '8px 12px', background: '#fef3c7', color: '#92400e', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <strong>Ghi chú đơn hàng:</strong> {selectedOrderDetail.note}
+              </div>
+            )}
 
             <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '14px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 700 }}>

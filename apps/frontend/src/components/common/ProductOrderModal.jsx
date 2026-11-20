@@ -5,6 +5,7 @@ import { formatService } from '../../services/formatService';
 import { resolveProductImage, defaultCoffeeImg } from '../../images';
 import { toppingApi } from '../../api';
 import { IconClose, IconCheck } from './Icons';
+import ToppingCheckboxList from './ToppingCheckboxList';
 
 let cachedToppings = null;
 
@@ -30,25 +31,26 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
     setNote('');
     setIsSuccess(false);
 
-    // Chỉ gọi API toppings 1 lần duy nhất khi mở modal nếu chưa có cache
     if (!cachedToppings) {
       setLoadingToppings(true);
-      toppingApi
-        .getAll()
-        .then((res) => {
-          const list = Array.isArray(res) ? res : res?.data || [];
-          cachedToppings = list;
-          setAvailableToppings(list);
-        })
-        .catch(() => {
-          setAvailableToppings([]);
-        })
-        .finally(() => {
-          setLoadingToppings(false);
-        });
     } else {
       setAvailableToppings(cachedToppings);
     }
+    toppingApi
+      .getAll()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : res?.data || [];
+        cachedToppings = list;
+        setAvailableToppings(list);
+      })
+      .catch(() => {
+        if (!cachedToppings) {
+          setAvailableToppings([]);
+        }
+      })
+      .finally(() => {
+        setLoadingToppings(false);
+      });
   }, [isOpen, product]);
 
   if (!isOpen || !product) return null;
@@ -69,6 +71,9 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
       const exists = prev.some((t) => t.id === topping.id);
       if (exists) {
         return prev.filter((t) => t.id !== topping.id);
+      }
+      if (formatService.getToppingAvailability(topping).isDisabled) {
+        return prev;
       }
       return [...prev, topping];
     });
@@ -283,50 +288,11 @@ export const ProductOrderModal = ({ product, isOpen, onClose, onNavigate }) => {
             ) : availableToppings.length === 0 ? (
               <div style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic' }}>Không có topping khả dụng</div>
             ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  maxHeight: '140px',
-                  overflowY: 'auto',
-                  background: '#f8fafc',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border, #e2e8f0)',
-                }}
-              >
-                {availableToppings.map((tp) => {
-                  const isChecked = selectedToppings.some((t) => t.id === tp.id);
-                  return (
-                    <label
-                      key={tp.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        background: isChecked ? '#f1f5f9' : 'transparent',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleTopping(tp)}
-                        />
-                        <span>{tp.name}</span>
-                      </span>
-                      <span style={{ color: 'var(--color-accent, #c17838)', fontWeight: 600 }}>
-                        +{formatService.formatMoney(tp.unitPrice || 0)}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+              <ToppingCheckboxList
+                toppings={availableToppings}
+                selectedToppings={selectedToppings}
+                onToggle={handleToggleTopping}
+              />
             )}
           </div>
 

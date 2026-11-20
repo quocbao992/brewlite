@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { orderApi, paymentApi, cartApi, axiosClient } from '../api';
+import { orderApi, paymentApi, cartApi, toppingApi, axiosClient } from '../api';
 import { OrderType } from '../models/order.model';
 import { formatService } from '../services/formatService';
 import InteractiveButton from '../components/common/InteractiveButton';
@@ -37,6 +37,14 @@ export const CheckoutPage = ({ onNavigate }) => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentCountdown, setPaymentCountdown] = useState(300);
   const [isOrderExpired, setIsOrderExpired] = useState(false);
+  const [toppingMap, setToppingMap] = useState({});
+
+  useEffect(() => {
+    toppingApi
+      .getAll()
+      .then((res) => setToppingMap(formatService.buildToppingMap(res)))
+      .catch(() => {});
+  }, []);
 
   // Đồng bộ giỏ hàng từ Frontend lên Backend trước khi checkout
   const syncCartToServer = async (customerId) => {
@@ -207,6 +215,17 @@ export const CheckoutPage = ({ onNavigate }) => {
 
     if (voucherCode.trim() && (voucherError || discountAmount <= 0 || !voucherDetail)) {
       setErrorMsg(`Mã giảm giá "${voucherCode.trim().toUpperCase()}" không hợp lệ hoặc đã hết hạn. Vui lòng xóa hoặc đổi mã khác.`);
+      return;
+    }
+
+    const blockedToppings = cartItems.flatMap((item) =>
+      formatService.getUnavailableToppings(item.toppings, toppingMap)
+    );
+    if (blockedToppings.length > 0) {
+      const firstBlocked = blockedToppings[0];
+      setErrorMsg(
+        `Topping "${firstBlocked.name}" hiện đã ${firstBlocked.label.toLowerCase()}. Vui lòng quay lại giỏ hàng để chỉnh sửa món.`
+      );
       return;
     }
 
@@ -462,6 +481,38 @@ export const CheckoutPage = ({ onNavigate }) => {
                     : 'CHỜ THANH TOÁN (PENDING)'}
               </span>
             </div>
+            {(createdOrder.note || note.trim()) && (
+              <div style={{ marginTop: '12px', padding: '8px 10px', borderRadius: '6px', background: '#fef3c7', color: '#92400e', fontSize: '0.85rem' }}>
+                <strong>Ghi chú đơn hàng:</strong> {createdOrder.note || note.trim()}
+              </div>
+            )}
+            {Array.isArray(createdOrder.items) && createdOrder.items.length > 0 && (
+              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: '6px' }}>
+                  Chi tiết món đã đặt:
+                </div>
+                {createdOrder.items.map((it, idx) => (
+                  <div key={idx} style={{ padding: '4px 0', fontSize: '0.85rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>
+                        <strong>{it.quantity}x</strong> {it.productName || it.name} {it.size ? `(Size ${it.size})` : ''}
+                        {Array.isArray(it.toppings) && it.toppings.length > 0 && (
+                          <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>
+                            {' '}• {it.toppings.map((t) => t.name || t.toppingName || t).join(', ')}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>{formatService.formatMoney(it.lineTotal || (it.unitPrice || 0) * (it.quantity || 1))}</span>
+                    </div>
+                    {it.note && (
+                      <div style={{ fontSize: '0.78rem', color: '#92400e', fontStyle: 'italic' }}>
+                        Ghi chú món: {it.note}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {isFailed && (
@@ -917,6 +968,25 @@ export const CheckoutPage = ({ onNavigate }) => {
                     <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                       Size {item.size} {item.toppings?.length > 0 ? `• Topping: ${item.toppings.map((t) => t.name).join(', ')}` : ''}
                     </div>
+                    {formatService.getUnavailableToppings(item.toppings, toppingMap).map((ut) => (
+                      <div
+                        key={ut.id}
+                        style={{
+                          marginTop: '3px',
+                          marginRight: '4px',
+                          display: 'inline-flex',
+                          fontSize: '0.74rem',
+                          color: ut.isDiscontinued ? '#475569' : '#ef4444',
+                          background: ut.isDiscontinued ? '#f1f5f9' : '#fef2f2',
+                          border: ut.isDiscontinued ? '1px solid #e2e8f0' : '1px solid #fee2e2',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Topping "{ut.name}": {ut.label}
+                      </div>
+                    ))}
                     {item.note && (
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
                         Ghi chú: {item.note}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { toppingApi } from '../api';
 import { formatService } from '../services/formatService';
 import { resolveProductImage, defaultCoffeeImg } from '../images';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -20,6 +21,14 @@ export const CartPage = ({ onNavigate }) => {
 
   const [loadingCart, setLoadingCart] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
+  const [toppingMap, setToppingMap] = useState({});
+
+  useEffect(() => {
+    toppingApi
+      .getAll()
+      .then((res) => setToppingMap(formatService.buildToppingMap(res)))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -169,6 +178,25 @@ export const CartPage = ({ onNavigate }) => {
                             Topping: {item.toppings.map((t) => t.name).join(', ')}
                           </div>
                         )}
+                        {formatService.getUnavailableToppings(item.toppings, toppingMap).map((ut) => (
+                          <div
+                            key={ut.id}
+                            style={{
+                              marginTop: '3px',
+                              marginRight: '4px',
+                              display: 'inline-flex',
+                              fontSize: '0.76rem',
+                              color: ut.isDiscontinued ? '#475569' : '#ef4444',
+                              background: ut.isDiscontinued ? '#f1f5f9' : '#fef2f2',
+                              border: ut.isDiscontinued ? '1px solid #e2e8f0' : '1px solid #fee2e2',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Topping "{ut.name}": {ut.label}
+                          </div>
+                        ))}
                           <div
                             style={{
                               fontSize: '0.82rem',

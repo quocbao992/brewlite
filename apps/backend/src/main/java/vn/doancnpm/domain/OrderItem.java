@@ -69,4 +69,7 @@ public class OrderItem {
 
     @Column(name = "product_image")
     private String productImage;
+
+    @Column(name = "note", length = 500)
+    private String note;
 }

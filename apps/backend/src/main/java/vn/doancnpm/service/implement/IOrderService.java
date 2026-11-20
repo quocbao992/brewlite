@@ -202,6 +202,7 @@ public class IOrderService implements OrderService {
                 .status(o.getStatus())
                 .orderType(o.getOrderType())
                 .tableNumber(o.getTableNumber())
+                .note(o.getNote())
                 .items(itemResponses)
                 .totalAmount(o.getTotalAmount())
                 .totalItems(totalItems)
@@ -278,6 +279,7 @@ public class IOrderService implements OrderService {
                 .quantity(i.getQuantity())
                 .unitPrice(i.getUnitPrice())
                 .lineTotal(i.getLineTotal())
+                .note(i.getNote())
                 .toppings(toppings)
                 .build();
     }
