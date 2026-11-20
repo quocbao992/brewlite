@@ -14,8 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -52,10 +60,32 @@ public class IAuthService implements AuthService {
     @Value("${spring.mail.username:}")
     private String mailUsername;
 
-    private final SecureRandom secureRandom = new SecureRandom();
+    @Value("${app.mail.webhook-url:}")
+    private String mailWebhookUrl;
 
-    private final java.util.concurrent.ConcurrentHashMap<String, String> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
+    @Value("${app.mail.brevo-api-key:}")
+    private String brevoApiKey;
+
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
+
+    private record InMemoryEntry(String value, long expireAt) {
+        boolean isExpired(long now) {
+            return now > expireAt;
+        }
+    }
+
+    private final java.util.concurrent.ConcurrentHashMap<String, InMemoryEntry> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile boolean redisAvailable = true;
+
+    private void purgeExpiredEntries() {
+        long now = System.currentTimeMillis();
+        inMemoryStore.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
+    }
 
     private void storeValue(String key, String value, long timeout, TimeUnit unit) {
         if (redisAvailable) {
@@ -66,7 +96,9 @@ public class IAuthService implements AuthService {
                 redisAvailable = false;
             }
         }
-        inMemoryStore.put(key, value);
+        purgeExpiredEntries();
+        long expireAt = System.currentTimeMillis() + unit.toMillis(timeout);
+        inMemoryStore.put(key, new InMemoryEntry(value, expireAt));
     }
 
     private String getValue(String key) {
@@ -80,7 +112,15 @@ public class IAuthService implements AuthService {
                 redisAvailable = false;
             }
         }
-        return inMemoryStore.get(key);
+        InMemoryEntry entry = inMemoryStore.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.isExpired(System.currentTimeMillis())) {
+            inMemoryStore.remove(key);
+            return null;
+        }
+        return entry.value();
     }
 
     private void deleteValue(String key) {
@@ -105,7 +145,7 @@ public class IAuthService implements AuthService {
                 redisAvailable = false;
             }
         }
-        return inMemoryStore.containsKey(key);
+        return getValue(key) != null;
     }
 
     private UserResponse covertToResponse(User user) {
@@ -278,6 +318,66 @@ public class IAuthService implements AuthService {
                 .build();
     }
 
+    private boolean isPresent(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private void sendOtpEmail(String toEmail, String fullName, String otp) throws Exception {
+        String subject = "Mã OTP đặt lại mật khẩu - BrewLite Coffee";
+        String body = "Xin chào " + fullName + ",\n\n"
+                + "Mã OTP đặt lại mật khẩu của bạn là: " + otp + "\n"
+                + "Mã có hiệu lực trong 15 phút. Vui lòng không chia sẻ mã này cho người khác.";
+
+        if (isPresent(brevoApiKey)) {
+            String senderEmail = isPresent(mailUsername) ? mailUsername : "no-reply@brewlite.vn";
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "sender", Map.of("name", "BrewLite Coffee", "email", senderEmail),
+                    "to", List.of(Map.of("email", toEmail)),
+                    "subject", subject,
+                    "textContent", body
+            ));
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("accept", "application/json")
+                    .header("content-type", "application/json")
+                    .header("api-key", brevoApiKey.trim())
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("Brevo status " + response.statusCode());
+            }
+            return;
+        }
+
+        if (isPresent(mailWebhookUrl)) {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "to", toEmail,
+                    "subject", subject,
+                    "body", body
+            ));
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(mailWebhookUrl.trim()))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("content-type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 400) {
+                throw new IllegalStateException("Webhook status " + response.statusCode());
+            }
+            return;
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailUsername);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
+        mailSender.send(message);
+    }
+
     @Override
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
@@ -292,27 +392,21 @@ public class IAuthService implements AuthService {
         }
 
         String resetOtp = String.format("%06d", secureRandom.nextInt(1000000));
-        String redisKey = "password-reset:" + email + ":" + resetOtp;
+        String redisKey = "password-reset:" + email;
         storeValue(
                 redisKey,
-                user.getId().toString(),
+                resetOtp + ":" + user.getId(),
                 15,
                 TimeUnit.MINUTES
         );
 
-        boolean mailConfigured = mailSender != null && mailUsername != null && !mailUsername.isBlank();
+        boolean mailConfigured = isPresent(brevoApiKey)
+                || isPresent(mailWebhookUrl)
+                || (mailSender != null && isPresent(mailUsername));
+
         if (mailConfigured) {
             try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom(mailUsername);
-                message.setTo(email);
-                message.setSubject("Mã OTP đặt lại mật khẩu");
-                message.setText(
-                        "Xin chào " + user.getFullName() + ",\n\n"
-                        + "Mã OTP đặt lại mật khẩu của bạn là: " + resetOtp + "\n"
-                        + "Mã có hiệu lực trong 15 phút. Vui lòng không chia sẽ mã này cho người khác."
-                );
-                mailSender.send(message);
+                sendOtpEmail(email, user.getFullName(), resetOtp);
             } catch (Exception ex) {
                 deleteValue(redisKey);
                 throw new IllegalStateException("Không thể gửi email OTP, vui lòng thử lại sau.");
@@ -333,9 +427,16 @@ public class IAuthService implements AuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
-        String redisKey = "password-reset:" + email + ":" + request.getOtpToken().trim();
-        String userId = getValue(redisKey);
-        if (userId == null) {
+        String redisKey = "password-reset:" + email;
+        String stored = getValue(redisKey);
+        if (stored == null || !stored.contains(":")) {
+            throw new IllegalArgumentException("Mã OTP không chính xác hoặc đã hết hạn");
+        }
+
+        String[] parts = stored.split(":", 2);
+        String savedOtp = parts[0];
+        String userId = parts[1];
+        if (!savedOtp.equals(request.getOtpToken().trim())) {
             throw new IllegalArgumentException("Mã OTP không chính xác hoặc đã hết hạn");
         }
 

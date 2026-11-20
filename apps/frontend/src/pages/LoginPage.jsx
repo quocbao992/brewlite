@@ -210,8 +210,15 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
               </div>
 
               <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label className="form-label" style={{ marginBottom: 0 }}>Mật khẩu</label>
+                <label className="form-label">Mật khẩu</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="Nhập mật khẩu"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
                   <button
                     type="button"
                     onClick={() => switchMode('forgot-email')}
@@ -228,13 +235,6 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
                     Quên mật khẩu?
                   </button>
                 </div>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="Nhập mật khẩu"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
               </div>
 
               <button
