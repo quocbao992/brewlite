@@ -139,6 +139,43 @@ export const formatService = {
       })
       .filter(Boolean);
   },
+
+  getPaymentChannelInfo(method) {
+    const m = String(method || '').toUpperCase();
+    if (m.includes('MOMO')) {
+      return {
+        bankName: 'Ví điện tử MoMo',
+        accountNumber: '0987654321',
+        accountName: 'BrewLite Coffee & Tea',
+        headerColor: '#a50064',
+      };
+    }
+    if (m.includes('STRIPE')) {
+      return {
+        bankName: 'Cổng quốc tế Stripe',
+        accountNumber: 'STRIPE-BREWLITE',
+        accountName: 'BrewLite Coffee & Tea',
+        headerColor: '#4f46e5',
+      };
+    }
+    return {
+      bankName: 'VietinBank',
+      accountNumber: '102874928192',
+      accountName: 'BrewLite Coffee & Tea',
+      headerColor: '#1e4675',
+    };
+  },
+
+  buildGatewayUrl({ orderId, orderCode, amount, method = 'VNPay', ref }) {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const params = new URLSearchParams();
+    if (orderId != null) params.set('orderId', String(orderId));
+    if (orderCode) params.set('orderCode', String(orderCode));
+    if (amount != null) params.set('amount', String(amount));
+    if (method) params.set('method', String(method));
+    if (ref) params.set('ref', String(ref));
+    return `${origin}/mock-gateway?${params.toString()}`;
+  },
 };
 
 export default formatService;

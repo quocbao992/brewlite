@@ -7,6 +7,7 @@ import { formatService } from '../services/formatService';
 import InteractiveButton from '../components/common/InteractiveButton';
 import { IconArrowLeft, IconCheck, IconClose } from '../components/common/Icons';
 import ChiikawaMascot from '../components/common/ChiikawaMascot';
+import QrPaymentCard from '../components/common/QrPaymentCard';
 
 export const CheckoutPage = ({ onNavigate }) => {
   const { user } = useAuth();
@@ -30,7 +31,6 @@ export const CheckoutPage = ({ onNavigate }) => {
   const [note, setNote] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [createdOrder, setCreatedOrder] = useState(null);
   const [paymentData, setPaymentData] = useState(null);
@@ -294,60 +294,39 @@ export const CheckoutPage = ({ onNavigate }) => {
     }
   };
 
-  // Xác nhận thanh toán qua Mock Gateway (chạy đúng tỷ lệ 60% SUCCESS / 40% FAILED)
-  const handleConfirmPaymentSuccess = async () => {
-    if (!paymentData?.orderId) return;
-    setPaymentLoading(true);
-    setErrorMsg('');
-    try {
-      // Gọi qua Mock Gateway để áp dụng đúng tỷ lệ 60% Thành công / 40% Thất bại
-      const res = await axiosClient.get('/mock-gateway/pay', {
-        params: {
-          orderId: paymentData.orderId,
-          method: paymentData.method,
-          ref: paymentData.idempotencyKey,
-        },
-      });
+  useEffect(() => {
+    if (
+      !createdOrder?.id ||
+      paymentSuccess ||
+      paymentData?.status === 'PAID' ||
+      createdOrder.status === 'PAID' ||
+      paymentData?.status === 'FAILED' ||
+      createdOrder.status === 'CANCELLED' ||
+      isOrderExpired
+    ) {
+      return;
+    }
 
-      const simulatedResult = res?.simulatedResult || res?.status || 'SUCCESS';
-
-      if (simulatedResult === 'SUCCESS') {
-        try {
-          const updated = await orderApi.confirmOrder(paymentData.orderId);
+    const pollTimer = setInterval(async () => {
+      try {
+        const latest = await orderApi.getById(createdOrder.id);
+        if (latest?.status === 'PAID') {
+          clearInterval(pollTimer);
           setPaymentSuccess(true);
           setPaymentData((prev) => (prev ? { ...prev, status: 'PAID' } : null));
-          setCreatedOrder(updated || ((prev) => (prev ? { ...prev, status: 'PAID' } : null)));
-        } catch (confirmErr) {
-          console.error('Lỗi khi xác nhận thanh toán backend:', confirmErr);
-          const msg =
-            confirmErr?.response?.data?.message ||
-            confirmErr?.message ||
-            'Xác nhận thanh toán thất bại.';
-          setErrorMsg(msg);
-          if (msg.includes('hết hạn') || msg.includes('quá 5 phút')) {
-            setIsOrderExpired(true);
-            setPaymentSuccess(false);
-            setPaymentData((prev) => (prev ? { ...prev, status: 'FAILED' } : null));
-            setCreatedOrder((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
-          }
-          return;
+          setCreatedOrder(latest);
+        } else if (latest?.status === 'CANCELLED' || latest?.status === 'PAYMENT_FAILED') {
+          clearInterval(pollTimer);
+          setPaymentSuccess(false);
+          setPaymentData((prev) => (prev ? { ...prev, status: 'FAILED' } : null));
+          setCreatedOrder(latest);
+          setErrorMsg('Giao dịch thanh toán không thành công hoặc đơn hàng đã bị hủy.');
         }
-      } else {
-        setPaymentSuccess(false);
-        setPaymentData((prev) => (prev ? { ...prev, status: 'FAILED' } : null));
-        setCreatedOrder((prev) => (prev ? { ...prev, status: 'CANCELLED' } : null));
-        try {
-          await orderApi.cancel(paymentData.orderId, 'Thanh toán thất bại');
-        } catch {}
-        setErrorMsg('Giao dịch thanh toán không thành công (Cổng thanh toán phản hồi: Thất bại / Thẻ không đủ số dư theo tỷ lệ giả lập 40%). Đơn hàng đã bị hủy.');
-      }
-    } catch (err) {
-      console.error('Lỗi khi gọi cổng thanh toán giả lập:', err);
-      setErrorMsg(err.message || 'Xác nhận thanh toán thất bại, vui lòng thử lại.');
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
+      } catch {}
+    }, 2000);
+
+    return () => clearInterval(pollTimer);
+  }, [createdOrder?.id, createdOrder?.status, paymentSuccess, paymentData?.status, isOrderExpired]);
 
   const getRemainingSeconds = (order) => {
     const targetOrder = order || createdOrder;
@@ -396,17 +375,6 @@ export const CheckoutPage = ({ onNavigate }) => {
     const isStripe = paymentData?.method === 'Stripe';
     const finalOrderCode = createdOrder.orderCode || `BL${createdOrder.id}`;
     const finalAmount = paymentData?.amount || createdOrder.totalAmount || subtotal;
-
-    // Tạo mã QR chuyển khoản theo mã đơn hàng thực tế
-    const qrData = isMomo
-      ? `2|99|0987654321|BREWLITE COFFEE|brewlite@coffee.vn|0|0|${finalAmount}|${finalOrderCode}`
-      : isStripe
-        ? `STRIPE-PAYMENT-${finalOrderCode}-${finalAmount}`
-        : `00020101021238540010A0000007270124000697042201121028749281920208QRIBFTTA5303704540${finalAmount}5802VN62${finalOrderCode.length + 4}08${finalOrderCode.length}${finalOrderCode}6304`;
-
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-      qrData
-    )}`;
 
     return (
       <div className="container" style={{ padding: '48px 24px 120px', maxWidth: '680px', margin: '0 auto' }}>
@@ -575,65 +543,14 @@ export const CheckoutPage = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* Phần quét mã QR thanh toán cổng */}
           {!isPaid && !isFailed && (
-            <div
-              style={{
-                border: '1px dashed var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '24px',
-                marginBottom: '24px',
-                background: '#fafafa',
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '12px' }}>
-                Quét mã để thanh toán cho đơn hàng {finalOrderCode}
-              </div>
-              <img
-                src={qrUrl}
-                alt="QR Thanh toán"
-                style={{
-                  width: '180px',
-                  height: '180px',
-                  borderRadius: '12px',
-                  background: '#ffffff',
-                  padding: '8px',
-                  boxShadow: 'var(--shadow-sm)',
-                  margin: '0 auto 14px',
-                  display: 'block',
-                }}
-              />
-              <div style={{ fontSize: '0.88rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                <div>Đơn vị nhận: <strong>BrewLite Coffee</strong></div>
-                <div>Kênh: <strong>{isMomo ? 'Ví điện tử MoMo' : isStripe ? 'Cổng quốc tế Stripe' : 'VietinBank (102874928192)'}</strong></div>
-                <div>Nội dung chuyển khoản: <strong style={{ color: 'var(--color-accent)' }}>{finalOrderCode}</strong></div>
-              </div>
-
-              {paymentData?.paymentUrl && (
-                <div style={{ marginTop: '12px' }}>
-                  <a
-                    href={paymentData.paymentUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ fontSize: '0.85rem', color: '#2563eb', textDecoration: 'underline' }}
-                  >
-                    Mở cổng thanh toán trực tiếp
-                  </a>
-                </div>
-              )}
-
-              <div style={{ marginTop: '20px' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleConfirmPaymentSuccess}
-                  disabled={paymentLoading}
-                  style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
-                >
-                  {paymentLoading ? 'Đang xác nhận với hệ thống...' : 'Tôi đã hoàn tất thanh toán'}
-                </button>
-              </div>
-            </div>
+            <QrPaymentCard
+              orderId={createdOrder.id}
+              orderCode={finalOrderCode}
+              amount={finalAmount}
+              method={paymentData?.method || paymentMethod}
+              idempotencyKey={paymentData?.idempotencyKey}
+            />
           )}
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>

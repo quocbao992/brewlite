@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        '/mock-gateway': {
+        '/mock-gateway/pay': {
           target: backendTarget,
           changeOrigin: true,
           secure: false,
