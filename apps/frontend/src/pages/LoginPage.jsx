@@ -322,7 +322,7 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Nhập username"
+                  placeholder="Nhập tên đăng nhập"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -386,7 +386,7 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
               <input
                 type="email"
                 className="form-input"
-                placeholder="VD: example@gmail.com"
+                placeholder="Nhập email đã đăng ký"
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
               />
