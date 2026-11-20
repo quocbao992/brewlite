@@ -1,6 +1,10 @@
 package vn.doancnpm.service.implement;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import lombok.RequiredArgsConstructor;
+import java.security.SecureRandom;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +45,14 @@ public class IAuthService implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
     private final JWTUtils jwtUtils;
+
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
+
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    private final SecureRandom secureRandom = new SecureRandom();
 
     private final java.util.concurrent.ConcurrentHashMap<String, String> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile boolean redisAvailable = true;
@@ -271,23 +284,47 @@ public class IAuthService implements AuthService {
 
         User user = userRepository.findByEmail(email).orElse(null);
 
-        if(user == null) {
+        if (user == null) {
             return new ForgotPasswordResponse(
-                    "Nếu email tồn tại, hệ thống đã tạo yêu cầu đặt lại mật khẩu.",
+                    "Nếu email tồn tại, hệ thống đã gửi mã OTP đặt lại mật khẩu.",
                     null
             );
         }
 
-        String resetOtp = UUID.randomUUID().toString();
+        String resetOtp = String.format("%06d", secureRandom.nextInt(1000000));
+        String redisKey = "password-reset:" + email + ":" + resetOtp;
         storeValue(
-                "password-reset:" + resetOtp,
+                redisKey,
                 user.getId().toString(),
                 15,
                 TimeUnit.MINUTES
         );
 
+        boolean mailConfigured = mailSender != null && mailUsername != null && !mailUsername.isBlank();
+        if (mailConfigured) {
+            try {
+                SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(mailUsername);
+                message.setTo(email);
+                message.setSubject("Mã OTP đặt lại mật khẩu");
+                message.setText(
+                        "Xin chào " + user.getFullName() + ",\n\n"
+                        + "Mã OTP đặt lại mật khẩu của bạn là: " + resetOtp + "\n"
+                        + "Mã có hiệu lực trong 15 phút. Vui lòng không chia sẽ mã này cho người khác."
+                );
+                mailSender.send(message);
+            } catch (Exception ex) {
+                deleteValue(redisKey);
+                throw new IllegalStateException("Không thể gửi email OTP, vui lòng thử lại sau.");
+            }
+            return new ForgotPasswordResponse(
+                    "Mã OTP 6 số đã được gửi tới email của bạn (có hiệu lực trong 15 phút).",
+                    null
+            );
+        }
+
         return new ForgotPasswordResponse(
-                "Token đặt lại mật khẩu có hiệu lực trong 15 phút.",
+                "Mã OTP đặt lại mật khẩu có hiệu lực trong 15 phút.",
                 resetOtp
         );
     }
@@ -295,18 +332,19 @@ public class IAuthService implements AuthService {
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        String redisKey = "password-reset:" + request.getOtpToken();
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        String redisKey = "password-reset:" + email + ":" + request.getOtpToken().trim();
         String userId = getValue(redisKey);
-        if(userId == null) {
-            throw new IllegalArgumentException("Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
+        if (userId == null) {
+            throw new IllegalArgumentException("Mã OTP không chính xác hoặc đã hết hạn");
         }
 
-        User user = userRepository.findById(Long.valueOf(userId)).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+        User user = userRepository.findById(Long.valueOf(userId))
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-        
-        deleteValue(redisKey);
 
+        deleteValue(redisKey);
     }
 }
