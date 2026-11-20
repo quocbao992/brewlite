@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api';
+import { OtpVerificationModal, formatCountdown } from '../components/common/OtpVerificationModal';
 
 export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
   const { login, isAuthenticated } = useAuth();
@@ -8,6 +9,7 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [forgotEmail, setForgotEmail] = useState('');
+  const [verifiedEmail, setVerifiedEmail] = useState('');
   const [otpToken, setOtpToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -15,16 +17,75 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [otpModalLoading, setOtpModalLoading] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
+  const [otpModalError, setOtpModalError] = useState('');
+  const [devOtpHint, setDevOtpHint] = useState('');
+  const [otpExpiresAt, setOtpExpiresAt] = useState(null);
+  const [resendAvailableAt, setResendAvailableAt] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
   useEffect(() => {
     if (isAuthenticated) {
       onNavigate('home');
     }
   }, [isAuthenticated, onNavigate]);
 
+  useEffect(() => {
+    const hasPendingTimers =
+      (otpExpiresAt && otpExpiresAt > Date.now()) ||
+      (resendAvailableAt && resendAvailableAt > Date.now());
+    if (!hasPendingTimers) return undefined;
+
+    setNowMs(Date.now());
+    const intervalId = setInterval(() => {
+      const current = Date.now();
+      setNowMs(current);
+      if (
+        (!otpExpiresAt || current >= otpExpiresAt) &&
+        (!resendAvailableAt || current >= resendAvailableAt)
+      ) {
+        clearInterval(intervalId);
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [otpExpiresAt, resendAvailableAt]);
+
+  const otpRemainingSeconds = otpExpiresAt
+    ? Math.max(0, Math.ceil((otpExpiresAt - nowMs) / 1000))
+    : 0;
+  const resendRemainingSeconds = resendAvailableAt
+    ? Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000))
+    : 0;
+
+  const normalizedForgotEmail = forgotEmail.trim().toLowerCase();
+  const isSameSentEmail = Boolean(verifiedEmail && verifiedEmail === normalizedForgotEmail);
+  const hasActiveOtpForCurrentEmail = isSameSentEmail && otpRemainingSeconds > 0;
+  const isCooldownActiveForCurrentEmail = isSameSentEmail && resendRemainingSeconds > 0;
+
   const switchMode = (nextMode) => {
     setMode(nextMode);
     setErrorMsg('');
     setSuccessMsg('');
+    setOtpModalOpen(false);
+    setOtpModalError('');
+  };
+
+  const applyOtpResponse = (emailLower, res) => {
+    const now = Date.now();
+    const ttlSeconds = Number(res?.expiresInSeconds) || 900;
+    const cooldownSeconds = Number(res?.resendAfterSeconds) || 300;
+    setVerifiedEmail(emailLower);
+    setOtpExpiresAt(now + ttlSeconds * 1000);
+    setResendAvailableAt(now + cooldownSeconds * 1000);
+    setNowMs(now);
+    setDevOtpHint(
+      res?.resetToken
+        ? `Chưa cấu hình dịch vụ gửi mail, mã OTP thử nghiệm: ${res.resetToken}`
+        : ''
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -63,19 +124,60 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
       return;
     }
 
+    if (isCooldownActiveForCurrentEmail && hasActiveOtpForCurrentEmail) {
+      setOtpModalError('');
+      setOtpModalOpen(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await authApi.forgotPassword({ email });
-      const baseMsg = res?.message || 'Mã OTP đã được gửi về email của bạn.';
-      const devHint = res?.resetToken
-        ? ` (Chưa cấu hình Gmail SMTP, mã OTP thử nghiệm: ${res.resetToken})`
-        : '';
-      setMode('forgot-reset');
-      setSuccessMsg(baseMsg + devHint);
+      setOtpToken('');
+      applyOtpResponse(email.toLowerCase(), res);
+      setOtpModalError('');
+      setOtpModalOpen(true);
     } catch (err) {
       setErrorMsg(err.message || 'Không thể gửi yêu cầu đặt lại mật khẩu.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (submittedOtp) => {
+    setOtpModalError('');
+    setOtpModalLoading(true);
+    try {
+      await authApi.verifyOtp({
+        email: verifiedEmail,
+        otpToken: submittedOtp,
+      });
+      setOtpToken(submittedOtp);
+      setOtpModalOpen(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      setErrorMsg('');
+      setMode('forgot-reset');
+      setSuccessMsg('Xác thực OTP thành công! Vui lòng đặt lại mật khẩu mới.');
+    } catch (err) {
+      setOtpModalError(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+    } finally {
+      setOtpModalLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!verifiedEmail || resendRemainingSeconds > 0) return;
+    setOtpModalError('');
+    setOtpResending(true);
+    try {
+      const res = await authApi.forgotPassword({ email: verifiedEmail });
+      setOtpToken('');
+      applyOtpResponse(verifiedEmail, res);
+    } catch (err) {
+      setOtpModalError(err.message || 'Không thể gửi lại mã OTP lúc này.');
+    } finally {
+      setOtpResending(false);
     }
   };
 
@@ -84,8 +186,8 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!otpToken.trim()) {
-      setErrorMsg('Vui lòng nhập mã OTP.');
+    if (!otpToken.trim() || otpRemainingSeconds <= 0) {
+      setErrorMsg('Phiên xác thực OTP đã hết hạn. Vui lòng xác thực lại mã OTP.');
       return;
     }
     if (!newPassword || newPassword.length < 6) {
@@ -100,20 +202,33 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
     setLoading(true);
     try {
       await authApi.resetPassword({
-        email: forgotEmail.trim(),
+        email: verifiedEmail || forgotEmail.trim(),
         otpToken: otpToken.trim(),
         newPassword,
       });
       setOtpToken('');
+      setVerifiedEmail('');
+      setOtpExpiresAt(null);
+      setResendAvailableAt(null);
       setNewPassword('');
       setConfirmPassword('');
       setMode('login');
       setSuccessMsg('Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
     } catch (err) {
-      setErrorMsg(err.message || 'Mã OTP không đúng hoặc đã hết hạn.');
+      setErrorMsg(err.message || 'Không thể đặt lại mật khẩu. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReopenOtp = () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setOtpModalError('');
+    if (verifiedEmail && !forgotEmail.trim()) {
+      setForgotEmail(verifiedEmail);
+    }
+    setOtpModalOpen(true);
   };
 
   return (
@@ -136,14 +251,18 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
       >
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>
-            {mode === 'login' ? 'Đăng Nhập' : 'Quên Mật Khẩu'}
+            {mode === 'login'
+              ? 'Đăng Nhập'
+              : mode === 'forgot-reset'
+                ? 'Đặt Lại Mật Khẩu'
+                : 'Quên Mật Khẩu'}
           </h2>
           <p style={{ color: 'var(--color-text-secondary)', marginTop: '6px' }}>
             {mode === 'login'
               ? 'Chào mừng bạn quay lại với BrewLite Coffee'
               : mode === 'forgot-email'
                 ? 'Nhập email để nhận mã OTP 6 số đặt lại mật khẩu'
-                : `Nhập mã OTP đã gửi tới ${forgotEmail}`}
+                : `Tạo mật khẩu mới cho ${verifiedEmail || forgotEmail}`}
           </p>
         </div>
 
@@ -273,13 +392,40 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
               />
             </div>
 
+            {isCooldownActiveForCurrentEmail && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  background: '#fef7ed',
+                  color: 'var(--color-primary-dark)',
+                  border: '1px solid #f3d6b6',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '14px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                }}
+              >
+                Đã gửi OTP tới email này. Có thể gửi lại mã mới sau{' '}
+                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCountdown(resendRemainingSeconds)}
+                </strong>
+                .
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn btn-primary"
               style={{ width: '100%', padding: '12px', marginTop: '10px' }}
-              disabled={loading}
+              disabled={loading || (isCooldownActiveForCurrentEmail && !hasActiveOtpForCurrentEmail)}
             >
-              {loading ? 'Đang gửi OTP...' : 'Gửi mã OTP qua Email'}
+              {loading
+                ? 'Đang gửi OTP...'
+                : isCooldownActiveForCurrentEmail && hasActiveOtpForCurrentEmail
+                  ? 'Mở lại ô nhập mã OTP'
+                  : isCooldownActiveForCurrentEmail
+                    ? `Gửi lại sau ${formatCountdown(resendRemainingSeconds)}`
+                    : 'Gửi mã OTP qua Email'}
             </button>
 
             <div style={{ textAlign: 'center', marginTop: '18px' }}>
@@ -296,15 +442,32 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
 
         {mode === 'forgot-reset' && (
           <form noValidate onSubmit={handleResetPassword}>
-            <div className="form-group">
-              <label className="form-label">Mã OTP (6 số)</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Nhập mã OTP từ email"
-                value={otpToken}
-                onChange={(e) => setOtpToken(e.target.value)}
-              />
+            <div
+              style={{
+                padding: '10px 14px',
+                background: otpRemainingSeconds > 0 ? 'var(--color-surface-muted)' : '#fee2e2',
+                color: otpRemainingSeconds > 0 ? 'var(--color-primary-dark)' : '#b91c1c',
+                border: `1px solid ${otpRemainingSeconds > 0 ? 'var(--color-border)' : '#fecaca'}`,
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '18px',
+                fontSize: '0.86rem',
+                fontWeight: 600,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              {otpRemainingSeconds > 0 ? (
+                <>
+                  <span>Phiên OTP hợp lệ</span>
+                  <strong style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCountdown(otpRemainingSeconds)}
+                  </strong>
+                </>
+              ) : (
+                <span>Phiên OTP đã hết hạn</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -315,6 +478,7 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
                 placeholder="Tối thiểu 6 ký tự"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                disabled={otpRemainingSeconds <= 0}
               />
             </div>
 
@@ -326,14 +490,21 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
                 placeholder="Nhập lại mật khẩu mới"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={otpRemainingSeconds <= 0}
               />
             </div>
 
             <button
               type="submit"
               className="btn btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: '10px' }}
-              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginTop: '10px',
+                opacity: otpRemainingSeconds <= 0 ? 0.55 : 1,
+                cursor: otpRemainingSeconds <= 0 ? 'not-allowed' : 'pointer',
+              }}
+              disabled={loading || otpRemainingSeconds <= 0}
             >
               {loading ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
             </button>
@@ -341,10 +512,10 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '18px', fontSize: '0.88rem' }}>
               <button
                 type="button"
-                onClick={() => switchMode('forgot-email')}
+                onClick={handleReopenOtp}
                 style={{ color: 'var(--color-accent)', fontWeight: 600 }}
               >
-                Gửi lại mã OTP
+                Nhập / gửi lại OTP
               </button>
               <button
                 type="button"
@@ -357,6 +528,23 @@ export const LoginPage = ({ onNavigate, initialNotice = '' }) => {
           </form>
         )}
       </div>
+
+      <OtpVerificationModal
+        isOpen={otpModalOpen}
+        email={verifiedEmail || forgotEmail.trim()}
+        otpRemainingSeconds={otpRemainingSeconds}
+        resendRemainingSeconds={resendRemainingSeconds}
+        loading={otpModalLoading}
+        resending={otpResending}
+        errorMsg={otpModalError}
+        devOtpHint={devOtpHint}
+        onClose={() => {
+          setOtpModalOpen(false);
+          setOtpModalError('');
+        }}
+        onVerify={handleVerifyOtp}
+        onResend={handleResendOtp}
+      />
     </div>
   );
 };
