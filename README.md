@@ -103,7 +103,19 @@ Phần này hướng dẫn chạy hệ thống BrewLite (MySQL + Redis + Backend
 
 ### 1. Chuẩn bị
 
-Cài đặt các công cụ theo mục **Yêu cầu hệ thống** (Git, JDK 17+, Node.js 18+, Docker Desktop).
+Cài đặt các công cụ sau (dùng chung cho cả hai cách chạy):
+
+- **Git**
+- **Docker Desktop** (phải đang chạy)
+- **JDK 25** (khuyến nghị Eclipse Temurin 25)
+- **Node.js 20 LTS** (kèm npm)
+
+Kiểm tra phiên bản:
+
+```bash
+java -version    # phải hiện 25.x
+node -v          # 20.x trở lên
+```
 
 Tải mã nguồn:
 
@@ -112,23 +124,54 @@ git clone <URL_REPOSITORY>
 cd <TEN_THU_MUC_DU_AN>
 ```
 
-###  Cách 1 – Chạy toàn bộ bằng Docker Compose
+Mọi lệnh `mvnw` bên dưới đều chạy ở **thư mục gốc** của dự án. Trên Windows PowerShell, dùng `.\mvnw` thay cho `./mvnw`.
 
-Chỉ cần Docker đang chạy. Lệnh dưới khởi động đủ 4 dịch vụ: MySQL, Redis, Backend, Frontend.
+> **Cách 1 và Cách 2 là hai lựa chọn thay thế nhau, chỉ cần chọn một**, không chạy nối tiếp. Nếu đã chạy Cách 1 rồi muốn chuyển sang Cách 2 (hoặc ngược lại), hãy làm theo ghi chú ở đầu Cách 2.
+
+### 2. Cách 1 – Chạy toàn bộ bằng Docker Compose
+
+Khởi động đủ 4 dịch vụ: MySQL, Redis, Backend, Frontend. Dockerfile của backend không tự biên dịch mà đóng gói file jar có sẵn, nên **phải build file jar trước**.
+
+**Bước 1: Build file jar của backend** (ở thư mục gốc)
+
+```bash
+./mvnw clean package -pl apps/backend -am -DskipTests      # Windows PowerShell: .\mvnw clean package -pl apps/backend -am -DskipTests
+```
+
+Kết quả: file `apps/backend/target/brewlite-backend-1.0.0-SNAPSHOT.jar`. Lần đầu Maven tải thư viện nên hơi lâu.
+
+**Bước 2: Khởi động hệ thống**
 
 ```bash
 docker compose up --build
 ```
 
+Lưu ý:
+
+- Lần đầu khởi động, backend có thể báo `Communications link failure` và tự khởi động lại vài lần do MySQL chưa sẵn sàng. Đây là bình thường, đợi 1–2 phút.
+- Hệ thống sẵn sàng khi log backend hiện `Started ... Application in ... seconds` và `DataSeeder hoan tat thanh cong`. Xem log bằng `docker compose logs -f backend`.
+- **Mỗi khi sửa code backend**, phải chạy lại Bước 1 rồi `docker compose up --build` (hoặc `docker compose up -d --build backend`) để cập nhật file jar mới. Code frontend được gắn volume nên tự cập nhật khi lưu file.
+
+**Bước 3: Mở ứng dụng trên trình duyệt**
+
+Frontend đã được `docker compose` tự khởi động cùng các dịch vụ khác, không cần chạy thêm lệnh nào. Khi backend sẵn sàng, mở trình duyệt vào:
+
+- **http://localhost:3000** (giao diện ứng dụng)
+
+Đăng nhập bằng tài khoản ở mục 6 (ví dụ `customer01` / `Customer@123`). Nếu trang chưa mở được, xem log frontend bằng `docker compose logs -f frontend`.
+
 Dừng hệ thống:
 
 ```bash
-docker compose down
+docker compose down        # giữ lại dữ liệu
+docker compose down -v     # dừng và xóa luôn dữ liệu MySQL (về trạng thái ban đầu)
 ```
 
-### Cách 2 – Chạy Backend và Frontend thủ công
+### 3. Cách 2 – Chạy Backend và Frontend thủ công
 
 Dùng Docker cho MySQL và Redis, còn Backend và Frontend chạy trực tiếp trên máy (tiện để debug).
+
+> Nếu đang chạy Cách 1, hãy `docker compose down` trước, vì hai cách dùng chung cổng 8081 và 3000. Lưu ý: lệnh `docker compose down` cũng tắt luôn MySQL và Redis, nên **bắt buộc phải làm Bước 1 bên dưới** để bật lại hai dịch vụ này trước khi chạy backend.
 
 #### Bước 1: Khởi động MySQL và Redis
 
@@ -147,16 +190,17 @@ Thông tin kết nối (đã khớp sẵn với `application.properties`, không
 
 #### Bước 2: Chạy Backend
 
+Chạy ở **thư mục gốc**:
+
 ```bash
-cd apps/backend
-./mvnw spring-boot:run        # Windows PowerShell: .\mvnw spring-boot:run
+./mvnw spring-boot:run -pl apps/backend        # Windows PowerShell: .\mvnw spring-boot:run -pl apps/backend
 ```
 
-Backend chạy ở cổng `8081` (đổi bằng biến môi trường `PORT`). Thành công khi console hiện dòng `Started ... Application in ... seconds`. Các bảng dữ liệu được Hibernate tự tạo (`ddl-auto=update`).
+Backend chạy ở cổng `8081` (đổi bằng biến môi trường `PORT`). Thành công khi console hiện dòng `Started ... Application in ... seconds`. Các bảng dữ liệu được Hibernate tự tạo (`ddl-auto=update`) và dữ liệu mẫu được `DataSeeder` nạp tự động ở lần chạy đầu.
 
 #### Bước 3: Chạy Frontend
 
-Mở terminal mới:
+Mở terminal mới, đứng ở **thư mục gốc dự án** (thư mục chứa `docker-compose.yml` và `pom.xml`) rồi chạy:
 
 ```bash
 cd apps/frontend
@@ -164,11 +208,7 @@ npm install
 npm run dev
 ```
 
-Nếu frontend không gọi được API, tạo file `apps/frontend/.env`:
-
-```env
-VITE_BACKEND_URL=http://localhost:8081
-```
+Sau khi chạy xong, mở trình duyệt vào **http://localhost:3000**. Frontend chạy ở cổng `3000` và tự chuyển tiếp (proxy) các request `/api` và `/mock-gateway` sang `http://localhost:8081`, nên không cần cấu hình thêm.
 
 ### 4. Địa chỉ truy cập
 
@@ -181,26 +221,40 @@ VITE_BACKEND_URL=http://localhost:8081
 
 ### 5. Kiểm tra nhanh
 
-Mở http://localhost:3000, đăng nhập (hoặc đăng ký tài khoản mới, mật khẩu tối thiểu 8 ký tự) và thấy danh sách thực đơn là hệ thống đã chạy đúng.
+Mở http://localhost:3000, đăng nhập bằng một tài khoản ở mục 6 (hoặc đăng ký tài khoản mới, mật khẩu tối thiểu 8 ký tự) và thấy danh sách thực đơn là hệ thống đã chạy đúng.
 
 Thanh toán dùng **Mock Payment Gateway** mô phỏng MoMo/VNPay/Stripe, nên không cần khóa API thật. Cổng mô phỏng có độ trễ 500 ms và tỉ lệ thành công 60% (`mock.gateway.success-rate=0.6`), vì vậy thanh toán có thể thất bại ngẫu nhiên. Đây là hành vi có chủ đích để kiểm thử trạng thái `PAYMENT_FAILED`, bạn chỉ cần thanh toán lại.
 
-### 6. Tài khoản mẫu
+### 6. Tài khoản và dữ liệu mẫu
+
+Các tài khoản và dữ liệu dưới đây được `DataSeeder` tạo tự động khi backend khởi động (chỉ tạo nếu chưa tồn tại):
+
 | Vai trò | Tài khoản | Mật khẩu |
 |---|---|---|
-| Quản lý (ADMIN / STORE_MANAGER) | `admin` | `Admin@123` |
-| Barista | | |
-| Khách hàng | | |
+| Quản trị (ADMIN) | `admin` | `Admin@123` |
+| Barista | `barista01` | `Barista@123` |
+| Thu ngân (CASHIER) | `cashier01` | `Cashier@123` |
+| Khách hàng | `customer01`, `customer02`, `customer03` | `Customer@123` |
 
-Khách hàng mới có thể tự đăng ký trên giao diện.
+Dữ liệu mẫu đi kèm: 5 danh mục, 4 topping, 8 đồ uống/bánh và 5 đơn hàng ở các trạng thái `PAID`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED`. Mỗi khách hàng mẫu có sẵn 120 điểm thưởng. Khách hàng mới cũng có thể tự đăng ký trên giao diện.
 
-> Đây là cấu hình dùng cho phát triển và demo (mật khẩu database, secret của cổng thanh toán mô phỏng nằm trong mã nguồn), không dùng cho môi trường production.
+> Đây là cấu hình dùng cho phát triển và demo (mật khẩu database, tài khoản mẫu, secret của cổng thanh toán mô phỏng nằm trong mã nguồn), không dùng cho môi trường production.
 
 ### 7. Lỗi thường gặp
 
 | Lỗi | Cách xử lý |
 |---|---|
-| `Communications link failure` / `Access denied` | Kiểm tra container `mysql_db` đang chạy
+| `Connection refused: getsockopt` khi chạy backend thủ công (Cách 2) | MySQL (hoặc Redis) chưa chạy. Chạy `docker compose up -d db redis`, kiểm tra bằng `docker ps` thấy container `mysql_db` và `doancnpm_redis`, đợi khoảng 30 giây rồi chạy lại backend. |
+| Docker build báo lỗi không tìm thấy `target/brewlite-backend-1.0.0-SNAPSHOT.jar` | Chưa build file jar. Chạy Bước 1 của Cách 1 rồi chạy lại `docker compose up --build`. |
+| `Communications link failure` / `Access denied` khi chạy Docker | MySQL còn đang khởi động, đợi 1–2 phút (backend tự thử lại). Nếu vẫn lỗi, kiểm tra container `mysql_db` đang chạy bằng `docker ps`. Nếu từng đổi mật khẩu MySQL, xóa volume cũ: `docker compose down -v`. |
+| `error during connect` / không kết nối được Docker | Docker Desktop chưa chạy. Mở Docker Desktop, đợi trạng thái *Engine running* rồi chạy lại. |
+| `Port ... is already in use` (8081, 3000, 3306, 6379) | Có chương trình khác đang dùng cổng. Tắt nó, hoặc dừng Cách 1 (`docker compose down`) nếu đang chuyển sang Cách 2. Với MySQL/Redis cài sẵn trên máy, tắt dịch vụ đó. |
+| `release version 25 not supported` / `invalid target release` | JDK trên máy không phải bản 25. Cài JDK 25 và kiểm tra `java -version` cùng biến `JAVA_HOME`. |
+| `Permission denied` khi chạy `./mvnw` (Linux/macOS) | Chạy `chmod +x mvnw` rồi thử lại. |
+| `./mvnw` không nhận diện trong PowerShell | Dùng `.\mvnw` thay cho `./mvnw`. |
+| Frontend báo lỗi mạng / `ECONNREFUSED` khi gọi API | Backend chưa chạy xong hoặc chưa chạy. Kiểm tra log backend. |
+| Thanh toán đôi lúc thất bại | Không phải lỗi: cổng thanh toán mô phỏng chỉ thành công 60%, hãy thanh toán lại. |
+| Muốn xóa sạch dữ liệu để bắt đầu lại | `docker compose down -v`, sau đó chạy lại. `DataSeeder` sẽ nạp lại dữ liệu mẫu. |
 ##  Kiểm thử (Testing)
 
 Dự án áp dụng mô hình kiểm thử 3 tầng (**Unit Test**, **Integration Test** và **End-to-End Test**) để đảm bảo tính chính xác từ từng hàm xử lý nghiệp vụ cho tới toàn bộ luồng trải nghiệm của người dùng trên hệ thống thật.
