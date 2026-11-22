@@ -78,7 +78,9 @@ public class ICartService implements CartService {
     CartItem matchedItem = null;
     for (CartItem item : existingItems) {
       boolean sameSize = Objects.equals(item.getSize(), incomingItem.getSize());
-      if (sameSize && sameTopping(item.getToppings(), incomingItem.getToppings())) {
+      boolean sameNote =
+          Objects.equals(normalizeNote(item.getNote()), normalizeNote(incomingItem.getNote()));
+      if (sameSize && sameNote && sameTopping(item.getToppings(), incomingItem.getToppings())) {
         matchedItem = item;
         break;
       }
@@ -148,6 +150,10 @@ public class ICartService implements CartService {
             .orElseGet(() -> cartRepo.save(Cart.builder().customer(customer).build()));
 
     return mapToCartResponse(cart);
+  }
+
+  private String normalizeNote(String note) {
+    return note == null ? "" : note.trim();
   }
 
   public boolean sameTopping(List<CartItemTopping> list1, List<CartItemTopping> list2) {

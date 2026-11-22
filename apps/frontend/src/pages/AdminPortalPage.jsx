@@ -1439,6 +1439,11 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                                       + Topping: {it.toppings.map((t) => t.toppingName || t.name || t).join(', ')}
                                     </div>
                                   )}
+                                  {it.note && (
+                                    <div style={{ fontSize: '0.78rem', color: '#92400e', fontStyle: 'italic', marginTop: '2px' }}>
+                                      Ghi chú món: {it.note}
+                                    </div>
+                                  )}
                                 </div>
                               ))
                             ) : (
@@ -1878,8 +1883,17 @@ export const AdminPortalPage = ({ activeTab = 'dashboard', onNavigate }) => {
                               </div>
                             </td>
                             <td style={{ padding: '12px 16px' }}>
-                              <span style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 700, background: '#f0fdf4', color: '#15803d' }}>
-                                {tp.stock ?? 0}
+                              <span
+                                style={{
+                                  padding: '3px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 700,
+                                  background: (tp.stock ?? 0) <= 0 ? '#fee2e2' : '#f0fdf4',
+                                  color: (tp.stock ?? 0) <= 0 ? '#dc2626' : '#15803d',
+                                }}
+                              >
+                                {(tp.stock ?? 0) <= 0 ? '0 (Hết hàng)' : tp.stock}
                               </span>
                             </td>
                             <td style={{ padding: '12px 16px' }}>

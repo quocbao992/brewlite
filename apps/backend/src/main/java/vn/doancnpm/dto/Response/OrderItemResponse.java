@@ -21,6 +21,7 @@ public class OrderItemResponse {
     private int quantity;
     private BigDecimal unitPrice;
     private BigDecimal lineTotal;
+    private String note;
     private List<OrderItemToppingResponse> toppings;
 }
 

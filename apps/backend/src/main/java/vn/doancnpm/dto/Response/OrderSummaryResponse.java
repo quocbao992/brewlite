@@ -22,6 +22,7 @@ public class OrderSummaryResponse {
     private Order.Status status;
     private Order.OrderType orderType;
     private String tableNumber;
+    private String note;
     private BigDecimal totalAmount;
     private int totalItems;
     private List<OrderItemResponse> items;

@@ -15,9 +15,17 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminPortalPage from './pages/AdminPortalPage';
 import ProfilePage from './pages/ProfilePage';
+import MockGatewayPage from './pages/MockGatewayPage';
 import { authService } from './services/authService';
 
 const MainApp = () => {
+  if (typeof window !== 'undefined' && window.location.pathname === '/mock-gateway') {
+    return (
+      <ErrorBoundary>
+        <MockGatewayPage />
+      </ErrorBoundary>
+    );
+  }
   const [currentTab, setCurrentTab] = useState('home');
   const [adminSubTab, setAdminSubTab] = useState('dashboard');
   const [authNotice, setAuthNotice] = useState('');

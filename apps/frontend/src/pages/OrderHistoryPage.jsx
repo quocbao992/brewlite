@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { orderApi } from '../api';
-import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
 import { formatService } from '../services/formatService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { resolveProductImage, defaultCoffeeImg } from '../images';
 import { IconAlert, IconClose } from '../components/common/Icons';
+import QrPaymentCard from '../components/common/QrPaymentCard';
 
 export const OrderHistoryPage = ({ onNavigate }) => {
   const { user } = useAuth();
@@ -22,7 +22,6 @@ export const OrderHistoryPage = ({ onNavigate }) => {
 
   // State cho Modal tiếp tục thanh toán (Mục 5)
   const [paymentModalOrder, setPaymentModalOrder] = useState(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentMsg, setPaymentMsg] = useState('');
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -133,62 +132,38 @@ export const OrderHistoryPage = ({ onNavigate }) => {
     }
   };
 
-  const handlePayNow = async (order) => {
-    if (getOrderRemainingSeconds(order.createdAt) <= 0) {
-      setPaymentMsg('Đơn hàng đã hết hạn thanh toán (quá 5 phút) và đã tự động hủy.');
-      orderApi.cancel(order.id, 'Hết thời gian chờ thanh toán (quá 5 phút)').catch(() => {});
-      loadOrders();
+  useEffect(() => {
+    if (!paymentModalOrder?.id || paymentModalOrder.status !== 'PENDING') {
       return;
     }
-    setPaymentLoading(true);
-    setPaymentMsg('');
-    try {
-      const res = await axiosClient.get('/mock-gateway/pay', {
-        params: {
-          orderId: order.id,
-          method: 'VNPay',
-          ref: `PAY-RESUME-${Date.now()}-${order.id}`,
-        },
-      });
 
-      const simulatedResult = res?.simulatedResult || res?.status || 'SUCCESS';
-      if (simulatedResult === 'SUCCESS') {
-        try {
-          await orderApi.confirmOrder(order.id);
+    const pollPayment = setInterval(async () => {
+      try {
+        const latest = await orderApi.getById(paymentModalOrder.id);
+        if (latest?.status === 'PAID') {
+          clearInterval(pollPayment);
           setPaymentMsg('Thanh toán thành công! Trạng thái đơn đã được cập nhật.');
+          setPaymentModalOrder((prev) => (prev ? { ...prev, status: 'PAID' } : null));
+          loadOrders(true);
           setTimeout(() => {
             setPaymentModalOrder(null);
             setPaymentMsg('');
-            loadOrders();
-          }, 1200);
-        } catch (confirmErr) {
-          console.error('Lỗi khi xác nhận thanh toán backend:', confirmErr);
-          const msg =
-            confirmErr?.response?.data?.message ||
-            confirmErr?.message ||
-            'Xác nhận thanh toán thất bại.';
-          setPaymentMsg(msg);
+          }, 1500);
+        } else if (latest?.status === 'CANCELLED' || latest?.status === 'PAYMENT_FAILED') {
+          clearInterval(pollPayment);
+          setPaymentMsg('Thanh toán không thành công hoặc đơn hàng đã bị hủy.');
+          setPaymentModalOrder((prev) => (prev ? { ...prev, status: latest.status } : null));
+          loadOrders(true);
           setTimeout(() => {
-            loadOrders();
-          }, 2000);
+            setPaymentModalOrder(null);
+            setPaymentMsg('');
+          }, 1800);
         }
-      } else {
-        try {
-          await orderApi.cancel(order.id, 'Thanh toán thất bại');
-        } catch {}
-        setPaymentMsg('Thanh toán không thành công theo xác suất thử nghiệm. Đơn hàng đã bị hủy.');
-        setTimeout(() => {
-          setPaymentModalOrder(null);
-          setPaymentMsg('');
-          loadOrders();
-        }, 1800);
-      }
-    } catch (err) {
-      setPaymentMsg(err.message || 'Xác nhận thanh toán thất bại.');
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
+      } catch {}
+    }, 2000);
+
+    return () => clearInterval(pollPayment);
+  }, [paymentModalOrder?.id, paymentModalOrder?.status]);
 
   // Xác định bước tiến trình của đơn
   const getStepProgress = (status) => {
@@ -467,6 +442,11 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                                 <span> • Topping: {item.toppings.map((t) => t.toppingName || t.name || t).join(', ')}</span>
                               )}
                             </div>
+                            {item.note && (
+                              <div style={{ fontSize: '0.78rem', color: '#92400e', fontStyle: 'italic', marginTop: '2px' }}>
+                                Ghi chú: {item.note}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -478,6 +458,11 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                   ) : (
                     <div style={{ fontSize: '0.88rem', color: '#64748b', fontStyle: 'italic', padding: '6px 0' }}>
                       Tổng số lượng món: {order.totalItems || 1} món
+                    </div>
+                  )}
+                  {order.note && (
+                    <div style={{ marginTop: '8px', padding: '6px 10px', background: '#fef3c7', color: '#92400e', borderRadius: '6px', fontSize: '0.82rem' }}>
+                      <strong>Ghi chú đơn hàng:</strong> {order.note}
                     </div>
                   )}
                 </div>
@@ -744,6 +729,9 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                           {item.toppings && item.toppings.length > 0 && (
                             <div>Topping: {item.toppings.map((t) => t.name || t.toppingName || t).join(', ')}</div>
                           )}
+                          {item.note && (
+                            <div style={{ color: '#92400e', fontStyle: 'italic' }}>Ghi chú: {item.note}</div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -759,6 +747,12 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                 </div>
               )}
             </div>
+
+            {selectedOrderDetail.note && (
+              <div style={{ marginBottom: '16px', padding: '8px 12px', background: '#fef3c7', color: '#92400e', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <strong>Ghi chú đơn hàng:</strong> {selectedOrderDetail.note}
+              </div>
+            )}
 
             <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '14px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 700 }}>
@@ -873,19 +867,15 @@ export const OrderHistoryPage = ({ onNavigate }) => {
               );
             })()}
 
-            <div style={{ margin: '0 auto 16px', display: 'inline-block', padding: '8px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-                  `00020101021238540010A0000007270124000697042201121028749281920208QRIBFTTA5303704540${paymentModalOrder.totalAmount}5802VN62${paymentModalOrder.orderCode ? paymentModalOrder.orderCode.length + 4 : 8}08${paymentModalOrder.orderCode ? paymentModalOrder.orderCode.length : 4}${paymentModalOrder.orderCode || 'BL' + paymentModalOrder.id}6304`
-                )}`}
-                alt="QR Code"
-                style={{ width: '160px', height: '160px', display: 'block' }}
+            {getOrderRemainingSeconds(paymentModalOrder.createdAt) > 0 && paymentModalOrder.status === 'PENDING' && (
+              <QrPaymentCard
+                orderId={paymentModalOrder.id}
+                orderCode={paymentModalOrder.orderCode || `BL${paymentModalOrder.id}`}
+                amount={paymentModalOrder.totalAmount}
+                method={paymentModalOrder.paymentMethod || 'VNPay'}
+                compact
               />
-            </div>
-
-            <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
-              Ngân hàng: <strong>VietinBank (102874928192)</strong> • Nội dung: <strong>{paymentModalOrder.orderCode || `BL${paymentModalOrder.id}`}</strong>
-            </div>
+            )}
 
             {paymentMsg && (
               <div
@@ -904,16 +894,6 @@ export const OrderHistoryPage = ({ onNavigate }) => {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => handlePayNow(paymentModalOrder)}
-                disabled={paymentLoading || getOrderRemainingSeconds(paymentModalOrder.createdAt) <= 0}
-                style={{ padding: '12px', fontSize: '0.95rem', fontWeight: 600 }}
-              >
-                {paymentLoading ? 'Đang gửi tín hiệu...' : 'Tôi đã hoàn tất thanh toán'}
-              </button>
-
               <button
                 type="button"
                 className="btn btn-secondary"
