@@ -357,7 +357,7 @@ export const OrderHistoryPage = ({ onNavigate }) => {
                       {[
                         { step: 1, label: 'Đã nhận đơn' },
                         { step: 2, label: 'Đã thanh toán' },
-                        { step: 3, label: 'Barista đang pha' },
+                        { step: 3, label: 'Đang chế biến' },
                         { step: 4, label: 'Mời nhận món' },
                         { step: 5, label: 'Hoàn tất' },
                       ].map((s) => {
