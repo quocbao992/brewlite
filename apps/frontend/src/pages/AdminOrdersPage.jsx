@@ -117,6 +117,12 @@ export const AdminOrdersPage = () => {
                   </div>
                 </div>
 
+                {order.note && (
+                  <div style={{ fontSize: '0.82rem', padding: '6px 10px', background: '#fef3c7', color: '#92400e', borderRadius: '6px' }}>
+                    <strong>Ghi chú đơn:</strong> {order.note}
+                  </div>
+                )}
+
                 <div
                   style={{
                     background: 'var(--color-surface-muted)',
@@ -137,6 +143,11 @@ export const AdminOrdersPage = () => {
                         {Array.isArray(it.toppings) && it.toppings.length > 0 && (
                           <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                             + Topping: {it.toppings.map((t) => t.toppingName || t.name || t).join(', ')}
+                          </div>
+                        )}
+                        {it.note && (
+                          <div style={{ fontSize: '0.78rem', color: '#92400e', fontStyle: 'italic', marginTop: '2px' }}>
+                            Ghi chú món: {it.note}
                           </div>
                         )}
                       </div>

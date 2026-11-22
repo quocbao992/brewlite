@@ -22,6 +22,7 @@ import vn.doancnpm.dto.Response.ForgotPasswordResponse;
 import vn.doancnpm.dto.Response.RefreshTokenResponse;
 import vn.doancnpm.dto.Request.RegisterRequest;
 import vn.doancnpm.dto.Request.ResetPasswordRequest;
+import vn.doancnpm.dto.Request.VerifyOtpRequest;
 import vn.doancnpm.dto.Response.RegisterResponse;
 import vn.doancnpm.service.AuthService;
 
@@ -67,7 +68,14 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequest request) {
         return ResponseEntity.ok(authService.forgotPassword(request));
     }
-    
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, String>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+        authService.verifyResetOtp(request);
+        return ResponseEntity.ok(Map.of("message", "Xác thực OTP thành công"));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<Map<String, String>> resetPassword(
         @Valid @RequestBody ResetPasswordRequest request ) {

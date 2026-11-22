@@ -3,6 +3,7 @@ import { formatService } from '../../services/formatService';
 import { resolveProductImage, defaultCoffeeImg } from '../../images';
 import { toppingApi } from '../../api';
 import { IconClose } from './Icons';
+import ToppingCheckboxList from './ToppingCheckboxList';
 
 let cachedToppings = null;
 
@@ -24,22 +25,24 @@ export const EditCartItemModal = ({ item, isOpen, onClose, onSave }) => {
 
     if (!cachedToppings) {
       setLoadingToppings(true);
-      toppingApi
-        .getAll()
-        .then((res) => {
-          const list = Array.isArray(res) ? res : res?.data || [];
-          cachedToppings = list;
-          setAvailableToppings(list);
-        })
-        .catch(() => {
-          setAvailableToppings([]);
-        })
-        .finally(() => {
-          setLoadingToppings(false);
-        });
     } else {
       setAvailableToppings(cachedToppings);
     }
+    toppingApi
+      .getAll()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : res?.data || [];
+        cachedToppings = list;
+        setAvailableToppings(list);
+      })
+      .catch(() => {
+        if (!cachedToppings) {
+          setAvailableToppings([]);
+        }
+      })
+      .finally(() => {
+        setLoadingToppings(false);
+      });
   }, [isOpen, item]);
 
   if (!isOpen || !item) return null;
@@ -68,6 +71,9 @@ export const EditCartItemModal = ({ item, isOpen, onClose, onSave }) => {
       const exists = prev.some((t) => (t.id || t.toppingId) === (topping.id || topping.toppingId));
       if (exists) {
         return prev.filter((t) => (t.id || t.toppingId) !== (topping.id || topping.toppingId));
+      }
+      if (formatService.getToppingAvailability(topping).isDisabled) {
+        return prev;
       }
       return [
         ...prev,
@@ -239,41 +245,13 @@ export const EditCartItemModal = ({ item, isOpen, onClose, onSave }) => {
             ) : availableToppings.length === 0 ? (
               <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Hiện không có topping khả dụng.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '160px', overflowY: 'auto' }}>
-                {availableToppings.map((tp) => {
-                  const isChecked = selectedToppings.some((t) => (t.id || t.toppingId) === tp.id);
-                  const price = Number(tp.price || tp.unitPrice) || 0;
-                  return (
-                    <label
-                      key={tp.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: isChecked ? '1px solid var(--color-accent, #c17838)' : '1px solid #e2e8f0',
-                        background: isChecked ? '#fffbeb' : '#ffffff',
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleTopping(tp)}
-                          style={{ cursor: 'pointer', accentColor: 'var(--color-accent, #c17838)' }}
-                        />
-                        <span style={{ fontWeight: isChecked ? 600 : 400 }}>{tp.name}</span>
-                      </div>
-                      <span style={{ fontWeight: 600, color: 'var(--color-accent, #c17838)', fontSize: '0.82rem' }}>
-                        +{formatService.formatMoney(price)}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+              <ToppingCheckboxList
+                toppings={availableToppings}
+                selectedToppings={selectedToppings}
+                onToggle={handleToggleTopping}
+                allowUncheckDisabled
+                maxHeight="160px"
+              />
             )}
           </div>
 

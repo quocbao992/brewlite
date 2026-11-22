@@ -1,6 +1,10 @@
 package vn.doancnpm.service.implement;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,7 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +34,7 @@ import vn.doancnpm.dto.Request.LoginRequest;
 import vn.doancnpm.dto.Request.RefreshTokenRequest;
 import vn.doancnpm.dto.Request.RegisterRequest;
 import vn.doancnpm.dto.Request.ResetPasswordRequest;
+import vn.doancnpm.dto.Request.VerifyOtpRequest;
 import vn.doancnpm.dto.Response.LoginResponse;
 import vn.doancnpm.dto.Response.RefreshTokenResponse;
 import vn.doancnpm.dto.Response.ForgotPasswordResponse;
@@ -41,8 +55,43 @@ public class IAuthService implements AuthService {
     private final StringRedisTemplate redisTemplate;
     private final JWTUtils jwtUtils;
 
-    private final java.util.concurrent.ConcurrentHashMap<String, String> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
+
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    @Value("${app.mail.webhook-url:}")
+    private String mailWebhookUrl;
+
+    @Value("${app.mail.brevo-api-key:}")
+    private String brevoApiKey;
+
+    private static final long OTP_TTL_SECONDS = 15 * 60L;
+    private static final long OTP_RESEND_COOLDOWN_SECONDS = 5 * 60L;
+    private static final String PASSWORD_RESET_KEY_PREFIX = "password-reset:";
+    private static final String PASSWORD_RESET_COOLDOWN_KEY_PREFIX = "password-reset-cooldown:";
+
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
+
+    private record InMemoryEntry(String value, long expireAt) {
+        boolean isExpired(long now) {
+            return now > expireAt;
+        }
+    }
+
+    private final java.util.concurrent.ConcurrentHashMap<String, InMemoryEntry> inMemoryStore = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile boolean redisAvailable = true;
+
+    private void purgeExpiredEntries() {
+        long now = System.currentTimeMillis();
+        inMemoryStore.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
+    }
 
     private void storeValue(String key, String value, long timeout, TimeUnit unit) {
         if (redisAvailable) {
@@ -53,7 +102,9 @@ public class IAuthService implements AuthService {
                 redisAvailable = false;
             }
         }
-        inMemoryStore.put(key, value);
+        purgeExpiredEntries();
+        long expireAt = System.currentTimeMillis() + unit.toMillis(timeout);
+        inMemoryStore.put(key, new InMemoryEntry(value, expireAt));
     }
 
     private String getValue(String key) {
@@ -67,7 +118,15 @@ public class IAuthService implements AuthService {
                 redisAvailable = false;
             }
         }
-        return inMemoryStore.get(key);
+        InMemoryEntry entry = inMemoryStore.get(key);
+        if (entry == null) {
+            return null;
+        }
+        if (entry.isExpired(System.currentTimeMillis())) {
+            inMemoryStore.remove(key);
+            return null;
+        }
+        return entry.value();
     }
 
     private void deleteValue(String key) {
@@ -92,7 +151,7 @@ public class IAuthService implements AuthService {
                 redisAvailable = false;
             }
         }
-        return inMemoryStore.containsKey(key);
+        return getValue(key) != null;
     }
 
     private UserResponse covertToResponse(User user) {
@@ -265,48 +324,187 @@ public class IAuthService implements AuthService {
                 .build();
     }
 
+    private boolean isPresent(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private void sendOtpEmail(String toEmail, String fullName, String otp) throws Exception {
+        String subject = "Mã OTP đặt lại mật khẩu - BrewLite Coffee";
+        String body = "Xin chào " + fullName + ",\n\n"
+                + "Mã OTP đặt lại mật khẩu của bạn là: " + otp + "\n"
+                + "Mã có hiệu lực trong 15 phút. Vui lòng không chia sẻ mã này cho người khác.";
+
+        if (isPresent(brevoApiKey)) {
+            String senderEmail = isPresent(mailUsername) ? mailUsername : "no-reply@brewlite.vn";
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "sender", Map.of("name", "BrewLite Coffee", "email", senderEmail),
+                    "to", List.of(Map.of("email", toEmail)),
+                    "subject", subject,
+                    "textContent", body
+            ));
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("accept", "application/json")
+                    .header("content-type", "application/json")
+                    .header("api-key", brevoApiKey.trim())
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("Brevo status " + response.statusCode());
+            }
+            return;
+        }
+
+        if (isPresent(mailWebhookUrl)) {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "to", toEmail,
+                    "subject", subject,
+                    "body", body
+            ));
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(mailWebhookUrl.trim()))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("content-type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 400) {
+                throw new IllegalStateException("Webhook status " + response.statusCode());
+            }
+            return;
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailUsername);
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
+        mailSender.send(message);
+    }
+
+    private String formatRemainingTime(long totalSeconds) {
+        long safeSeconds = Math.max(0L, totalSeconds);
+        long minutes = safeSeconds / 60L;
+        long seconds = safeSeconds % 60L;
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+
+    private long parseEpochMillis(String rawValue) {
+        try {
+            return Long.parseLong(rawValue.trim());
+        } catch (NumberFormatException ex) {
+            return 0L;
+        }
+    }
+
+    private Long validateResetOtp(String rawEmail, String rawOtp) {
+        String email = rawEmail.trim().toLowerCase(Locale.ROOT);
+        String redisKey = PASSWORD_RESET_KEY_PREFIX + email;
+        String stored = getValue(redisKey);
+        if (stored == null || !stored.contains(":")) {
+            throw new IllegalArgumentException("Mã OTP không chính xác hoặc đã hết hạn");
+        }
+
+        String[] parts = stored.split(":", 2);
+        String savedOtp = parts[0];
+        String userId = parts[1];
+        if (!savedOtp.equals(rawOtp.trim())) {
+            throw new IllegalArgumentException("Mã OTP không chính xác hoặc đã hết hạn");
+        }
+        return Long.valueOf(userId);
+    }
+
     @Override
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        String cooldownKey = PASSWORD_RESET_COOLDOWN_KEY_PREFIX + email;
+        String existingCooldown = getValue(cooldownKey);
+        if (isPresent(existingCooldown)) {
+            long allowedAt = parseEpochMillis(existingCooldown);
+            long remainingMs = allowedAt - System.currentTimeMillis();
+            if (remainingMs > 0) {
+                long remainingSeconds = (remainingMs + 999L) / 1000L;
+                throw new IllegalStateException(
+                        "Vui lòng đợi thêm " + formatRemainingTime(remainingSeconds) + " trước khi gửi lại mã OTP.");
+            }
+        }
 
+        long nextResendAt = System.currentTimeMillis() + OTP_RESEND_COOLDOWN_SECONDS * 1000L;
         User user = userRepository.findByEmail(email).orElse(null);
 
-        if(user == null) {
+        if (user == null) {
+            storeValue(cooldownKey, String.valueOf(nextResendAt), OTP_RESEND_COOLDOWN_SECONDS, TimeUnit.SECONDS);
             return new ForgotPasswordResponse(
-                    "Nếu email tồn tại, hệ thống đã tạo yêu cầu đặt lại mật khẩu.",
-                    null
+                    "Nếu email tồn tại, hệ thống đã gửi mã OTP đặt lại mật khẩu.",
+                    null,
+                    OTP_TTL_SECONDS,
+                    OTP_RESEND_COOLDOWN_SECONDS
             );
         }
 
-        String resetOtp = UUID.randomUUID().toString();
+        String resetOtp = String.format("%06d", secureRandom.nextInt(1000000));
+        String redisKey = PASSWORD_RESET_KEY_PREFIX + email;
         storeValue(
-                "password-reset:" + resetOtp,
-                user.getId().toString(),
-                15,
-                TimeUnit.MINUTES
+                redisKey,
+                resetOtp + ":" + user.getId(),
+                OTP_TTL_SECONDS,
+                TimeUnit.SECONDS
+        );
+        storeValue(
+                cooldownKey,
+                String.valueOf(nextResendAt),
+                OTP_RESEND_COOLDOWN_SECONDS,
+                TimeUnit.SECONDS
         );
 
+        boolean mailConfigured = isPresent(brevoApiKey)
+                || isPresent(mailWebhookUrl)
+                || (mailSender != null && isPresent(mailUsername));
+
+        if (mailConfigured) {
+            try {
+                sendOtpEmail(email, user.getFullName(), resetOtp);
+            } catch (Exception ex) {
+                deleteValue(redisKey);
+                deleteValue(cooldownKey);
+                throw new IllegalStateException("Không thể gửi email OTP, vui lòng thử lại sau.");
+            }
+            return new ForgotPasswordResponse(
+                    "Mã OTP 6 số đã được gửi tới email của bạn.",
+                    null,
+                    OTP_TTL_SECONDS,
+                    OTP_RESEND_COOLDOWN_SECONDS
+            );
+        }
+
         return new ForgotPasswordResponse(
-                "Token đặt lại mật khẩu có hiệu lực trong 15 phút.",
-                resetOtp
+                "Mã OTP đặt lại mật khẩu đã được tạo.",
+                resetOtp,
+                OTP_TTL_SECONDS,
+                OTP_RESEND_COOLDOWN_SECONDS
         );
+    }
+
+    @Override
+    public void verifyResetOtp(VerifyOtpRequest request) {
+        validateResetOtp(request.getEmail(), request.getOtpToken());
     }
 
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        String redisKey = "password-reset:" + request.getOtpToken();
-        String userId = getValue(redisKey);
-        if(userId == null) {
-            throw new IllegalArgumentException("Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
-        }
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        Long userId = validateResetOtp(email, request.getOtpToken());
 
-        User user = userRepository.findById(Long.valueOf(userId)).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng"));
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-        
-        deleteValue(redisKey);
 
+        deleteValue(PASSWORD_RESET_KEY_PREFIX + email);
+        deleteValue(PASSWORD_RESET_COOLDOWN_KEY_PREFIX + email);
     }
 }

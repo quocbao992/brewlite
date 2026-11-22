@@ -43,6 +43,7 @@ import vn.doancnpm.dto.Request.LogoutRequest;
 import vn.doancnpm.dto.Request.RefreshTokenRequest;
 import vn.doancnpm.dto.Request.RegisterRequest;
 import vn.doancnpm.dto.Request.ResetPasswordRequest;
+import vn.doancnpm.dto.Request.VerifyOtpRequest;
 import vn.doancnpm.dto.Response.ForgotPasswordResponse;
 import vn.doancnpm.dto.Response.LoginResponse;
 import vn.doancnpm.dto.Response.RefreshTokenResponse;
@@ -557,6 +558,65 @@ class AuthControllerTest {
                     .andExpect(jsonPath("$.message").value("Mã OTP không chính xác hoặc đã hết hạn"));
 
             verify(authService).resetPassword(any(ResetPasswordRequest.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST " + BASE_URL + "/verify-otp")
+    class VerifyOtpTests {
+
+        @Test
+        @DisplayName("OTP hợp lệ -> trả về 200 OK")
+        void verifyOtp_validRequest_returnsSuccess() throws Exception {
+            VerifyOtpRequest request = new VerifyOtpRequest();
+            request.setEmail("user@example.com");
+            request.setOtpToken("123456");
+
+            doNothing().when(authService).verifyResetOtp(any(VerifyOtpRequest.class));
+
+            mockMvc.perform(post(BASE_URL + "/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").value("Xác thực OTP thành công"));
+
+            verify(authService).verifyResetOtp(any(VerifyOtpRequest.class));
+        }
+
+        @Test
+        @DisplayName("OTP không đúng hoặc hết hạn -> trả về 400 Bad Request")
+        void verifyOtp_invalidOtp_returns400() throws Exception {
+            VerifyOtpRequest request = new VerifyOtpRequest();
+            request.setEmail("user@example.com");
+            request.setOtpToken("000000");
+
+            doThrow(new IllegalArgumentException("Mã OTP không chính xác hoặc đã hết hạn"))
+                    .when(authService).verifyResetOtp(any(VerifyOtpRequest.class));
+
+            mockMvc.perform(post(BASE_URL + "/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.message").value("Mã OTP không chính xác hoặc đã hết hạn"));
+
+            verify(authService).verifyResetOtp(any(VerifyOtpRequest.class));
+        }
+
+        @Test
+        @DisplayName("Thiếu mã OTP -> validation thất bại trả về 400")
+        void verifyOtp_blankOtp_returns400() throws Exception {
+            VerifyOtpRequest request = new VerifyOtpRequest();
+            request.setEmail("user@example.com");
+            request.setOtpToken("");
+
+            mockMvc.perform(post(BASE_URL + "/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400));
+
+            verifyNoInteractions(authService);
         }
     }
 }
