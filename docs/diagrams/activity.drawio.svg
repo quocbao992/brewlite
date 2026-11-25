@@ -1,749 +1,1223 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="app.diagrams.net">
-  <diagram name="Page-1" id="d7_qae3D39g9udsxQC6H">
-    <mxGraphModel dx="4214" dy="2334" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="2336" math="0" shadow="0">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-        <UserObject label="" plantUmlData="{&#xa;  &quot;data&quot;: &quot;@startuml\nskinparam conditionStyle inside\nskinparam sequenceMessageAlign center\nskinparam shadowing false\nskinparam defaultTextAlignment center\n\ntitle Activity Diagram - Luồng Đặt Món và Thanh Toán (End-to-End)\n\n|#LightYellow|Khách hàng (Customer)|\n|#LightCyan|Hệ thống (Web/API Backend)|\n|#LightGreen|Bếp / Pha chế (Kitchen)|\n|#Pink|Đơn vị Vận chuyển / Phục vụ|\n\n|Khách hàng (Customer)|\nstart\n:Truy cập hệ thống và xem Thực đơn;\n:Chọn món ăn và tùy chọn (size, topping...);\n:Thêm món vào Giỏ hàng;\n:Xem giỏ hàng và chọn \&quot;Tiến hành Đặt đơn\&quot;;\n\n|Hệ thống (Web/API Backend)|\n:Kiểm tra trạng thái đăng nhập;\nif (Người dùng đã đăng nhập?) then ([Chưa đăng nhập])\n    |Khách hàng (Customer)|\n    :Chuyển hướng đến màn hình Đăng nhập;\n    repeat\n        :Nhập thông tin xác thực (Email/Mật khẩu);\n        |Hệ thống (Web/API Backend)|\n        :Xác thực thông tin tài khoản;\n    backward:Báo lỗi đăng nhập;\n    repeat while (Thông tin đăng nhập hợp lệ?) is ([Không]) not ([Hợp lệ])\n    |Khách hàng (Customer)|\n    :Đăng nhập thành công, quay lại Giỏ hàng;\nelse ([Đã đăng nhập])\nendif\n\n|Hệ thống (Web/API Backend)|\n:Kiểm tra tồn kho &amp; khả dụng của các món;\nif (Tất cả món còn hàng?) then ([Còn thiếu / Hết món])\n    :Thông báo món đã hết hoặc không đủ số lượng;\n    |Khách hàng (Customer)|\n    :Cập nhật hoặc chọn lại món khác trong giỏ hàng;\n    detach\nelse ([Đủ hàng / Khả dụng])\nendif\n\n|Khách hàng (Customer)|\n:Xác nhận thông tin giao hàng &amp; chọn cổng thanh toán;\nnote right\n    Hỗ trợ các cổng:\n    - MoMo\n    - VNPay\n    - Stripe / Thẻ\nend note\n\nrepeat\n    |Khách hàng (Customer)|\n    :Thực hiện thanh toán qua cổng đã chọn;\n    |Hệ thống (Web/API Backend)|\n    :Xác thực và ghi nhận kết quả từ Cổng thanh toán;\n    \n    if (Trạng thái giao dịch?) then ([Thành công])\n        break\n    else ([Thất bại])\n        |Khách hàng (Customer)|\n        :Nhận thông báo thanh toán thất bại;\n        if (Khách hàng muốn thử lại?) then ([Thử lại / Đổi cổng khác])\n            :Chọn lại phương thức thanh toán;\n        else ([Hủy đơn])\n            |Hệ thống (Web/API Backend)|\n            :Hủy phiên giao dịch;\n            |Khách hàng (Customer)|\n            stop\n        endif\n    endif\nrepeat while (Thực hiện lại giao dịch)\n\n|Hệ thống (Web/API Backend)|\n:Tạo Đơn hàng và lưu vào cơ sở dữ liệu (Database);\n:Trừ số lượng tồn kho (Inventory Deduct);\n:Gửi thông báo Đặt hàng thành công cho Khách hàng;\n\nfork\n    |Bếp / Pha chế (Kitchen)|\n    :Nhận phiếu chế biến món (KDS/In bếp);\n    :Chuẩn bị và hoàn thành món ăn;\n    :Cập nhật trạng thái \&quot;Sẵn sàng phục vụ / giao\&quot;;\nfork again\n    |Khách hàng (Customer)|\n    :Theo dõi tiến độ đơn hàng trên giao diện;\nend fork\n\n|Đơn vị Vận chuyển / Phục vụ|\n:Nhận món và giao đến khách hàng;\n\n|Khách hàng (Customer)|\n:Nhận món ăn &amp; kiểm tra đơn hàng;\n:Hoàn tất đơn hàng;\nstop\n\n@enduml&quot;,&#xa;  &quot;config&quot;: null&#xa;}" id="2">
-          <mxCell connectable="0" parent="1" style="group;transparentBounds=1;editIcon=1;lockedGroup=0;groupPadding=10;" vertex="1">
-            <mxGeometry as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Quản lý&amp;nbsp;" plantUmlId="lane_166" plantUmlBaseStyle="swimlane;collapsible=0;startSize=30;fillColor=#FFC0CB;swimlaneFillColor=#FFC0CB;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" plantUmlBaseValue="Đơn vị Vận chuyển / Phục vụ" id="3">
-          <mxCell parent="2" style="swimlane;collapsible=0;startSize=30;fillColor=#FFC0CB;swimlaneFillColor=#FFC0CB;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="2103" width="260" x="1308" y="62" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Báo cáo và thống kê " plantUmlId="action_126" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Trừ số lượng tồn kho (Inventory Deduct)" id="4">
-          <mxCell parent="3" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="210" x="25" y="1671" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Khách hàng (Customer)" plantUmlId="lane_163" plantUmlBaseStyle="swimlane;collapsible=0;startSize=30;fillColor=#FFFFE0;swimlaneFillColor=#FFFFE0;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" plantUmlBaseValue="Khách hàng (Customer)" id="5">
-          <mxCell parent="2" style="swimlane;collapsible=0;startSize=30;fillColor=#FFFFE0;swimlaneFillColor=#FFFFE0;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="2103" width="547" x="40" y="62" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Nhận thông báo thanh toán thất bại" plantUmlId="action_92" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Nhận thông báo thanh toán thất bại" id="6">
-          <mxCell parent="5" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="229" x="117.5" y="1256" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="rmerge_115" plantUmlBaseStyle="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" plantUmlBaseValue="" id="7">
-          <mxCell parent="5" style="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="24" width="24" x="220" y="1326" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_95" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="8">
-          <mxCell edge="1" parent="5" source="6" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;endFill=0;" target="7">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="232" y="1331" as="sourcePoint" />
-              <mxPoint x="231.99999999999977" y="1351" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Chọn lại phương thức thanh toán" plantUmlId="action_98" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Chọn lại phương thức thanh toán" id="9">
-          <mxCell parent="5" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="211" x="9" y="1376" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Thử lại / Đổi cổng khác]" plantUmlId="e_96" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=left;exitX=0;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Thử lại / Đổi cổng khác]" id="10">
-          <mxCell edge="1" parent="5" source="7" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=left;exitX=0;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;entryX=0.483;entryY=-0.006;entryDx=0;entryDy=0;entryPerimeter=0;" target="9">
-            <mxGeometry relative="1" x="-0.1135" y="-7" as="geometry">
-              <mxPoint as="offset" />
-              <Array as="points">
-                <mxPoint x="110.91" y="1338" />
-              </Array>
-              <mxPoint x="151" y="1362.9999999999998" as="sourcePoint" />
-              <mxPoint x="111" y="1395" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="rmerge_115" plantUmlBaseStyle="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" plantUmlBaseValue="" id="11">
-          <mxCell parent="5" style="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="24" width="24" x="220" y="1446" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <mxCell id="12" edge="1" parent="5" source="9" style="endArrow=none;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="11" value="">
-          <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <Array as="points">
-              <mxPoint x="114.5" y="1458" />
-            </Array>
-            <mxPoint x="90" y="1436" as="sourcePoint" />
-            <mxPoint x="140" y="1386" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <UserObject label="" plantUmlId="e_112" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="13">
-          <mxCell edge="1" parent="5" source="11" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="6">
-            <mxGeometry relative="1" x="0.0646" as="geometry">
-              <Array as="points">
-                <mxPoint x="400" y="1458" />
-                <mxPoint x="400" y="1273" />
-              </Array>
-              <mxPoint x="306" y="1461" as="sourcePoint" />
-              <mxPoint x="244" y="1113" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <mxCell id="14" connectable="0" parent="13" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="[Thất bại]&amp;nbsp;" vertex="1">
-          <mxGeometry relative="1" x="-0.6401" as="geometry">
-            <mxPoint y="-12" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <UserObject label="Thực hiện thanh toán qua cổng đã chọn" plantUmlId="action_77" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Thực hiện thanh toán qua cổng đã chọn" id="15">
-          <mxCell parent="5" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="250" x="107" y="1136" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <mxCell id="16" edge="1" parent="5" source="17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;defaultLabelBackgroundColor=page;" target="15" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <UserObject label="Chọn voucher, phương thức giảm giá" plantUmlId="action_69" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Xác nhận thông tin giao hàng &amp; chọn cổng thanh toán" id="17">
-          <mxCell parent="5" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="334" x="65" y="1078" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Hệ thống (Web/API Backend)" plantUmlId="lane_164" plantUmlBaseStyle="swimlane;collapsible=0;startSize=30;fillColor=#E0FFFF;swimlaneFillColor=#E0FFFF;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" plantUmlBaseValue="Hệ thống (Web/API Backend)" id="18">
-          <mxCell parent="2" style="swimlane;collapsible=0;startSize=30;fillColor=#E0FFFF;swimlaneFillColor=#E0FFFF;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="2103" width="425" x="587" y="62" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Thông báo món đã hết hoặc không đủ số lượng" plantUmlId="action_56" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Thông báo món đã hết hoặc không đủ số lượng" id="19">
-          <mxCell parent="18" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="293" x="21" y="876" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <mxCell id="20" parent="18" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="" vertex="1">
-          <mxGeometry height="24" width="24" x="153" y="346" as="geometry" />
-        </mxCell>
-        <UserObject label="" plantUmlId="merge_44" plantUmlBaseStyle="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" plantUmlBaseValue="" id="21">
-          <mxCell parent="18" style="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="24" width="24" x="155.5" y="606" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="merge_44" plantUmlBaseStyle="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" plantUmlBaseValue="" id="22">
-          <mxCell parent="18" style="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="24" width="24" x="155.5" y="816" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Còn thiếu / Hết món]" plantUmlId="e_55" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;labelPosition=right;align=center;verticalAlign=top;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Còn thiếu / Hết món]" id="23">
-          <mxCell edge="1" parent="18" source="22" style="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;labelPosition=right;align=center;verticalAlign=top;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="19">
-            <mxGeometry relative="1" x="-0.9444" as="geometry">
-              <mxPoint x="167.5" y="841" as="sourcePoint" />
-              <mxPoint x="167.5" y="865" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="rmerge_115" plantUmlBaseStyle="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" plantUmlBaseValue="" id="24">
-          <mxCell parent="18" style="rhombus;fillColor=#F1F1F1;strokeColor=#181818;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="24" width="24" x="155.5" y="1216" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <mxCell id="25" edge="1" parent="18" source="24" style="endArrow=none;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="">
-          <mxGeometry height="50" relative="1" width="50" x="-0.6567" as="geometry">
-            <Array as="points">
-              <mxPoint x="318.5" y="1228" />
-              <mxPoint x="318.5" y="1514" />
-            </Array>
-            <mxPoint x="179.5" y="1216" as="sourcePoint" />
-            <mxPoint x="167.5" y="1514" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="26" connectable="0" parent="25" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="[Thành công]" vertex="1">
-          <mxGeometry relative="1" x="-0.7033" y="3" as="geometry">
-            <mxPoint y="-9" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <UserObject label="Nhân viên&amp;nbsp;" plantUmlId="lane_165" plantUmlBaseStyle="swimlane;collapsible=0;startSize=30;fillColor=#90EE90;swimlaneFillColor=#90EE90;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" plantUmlBaseValue="Bếp / Pha chế (Kitchen)" id="27">
-          <mxCell parent="2" style="swimlane;collapsible=0;startSize=30;fillColor=#90EE90;swimlaneFillColor=#90EE90;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=18;fontStyle=0;html=1;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="2103" width="296" x="1012" y="62" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Nhận món và giao đến khách hàng" plantUmlId="action_154" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Nhận món và giao đến khách hàng" id="28">
-          <mxCell parent="27" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="222" x="48" y="1913" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <mxCell id="29" edge="1" parent="27" style="endArrow=classic;html=1;rounded=0;entryX=0.511;entryY=0.008;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
-          <mxGeometry height="50" relative="1" width="50" x="-0.0884" as="geometry">
-            <Array as="points">
-              <mxPoint x="428" y="1606" />
-            </Array>
-            <mxPoint x="-132" y="1606" as="sourcePoint" />
-            <mxPoint x="428" y="1671" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <UserObject label="" plantUmlId="start_0" plantUmlBaseStyle="ellipse;fillColor=#222222;strokeColor=#222222;shadow=0;align=center;" plantUmlBaseValue="" id="30">
-          <mxCell parent="2" style="ellipse;fillColor=#222222;strokeColor=#222222;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="20" width="20" x="262" y="92" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_1" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="31">
-          <mxCell edge="1" parent="2" source="30" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="32">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="112" as="sourcePoint" />
-              <mxPoint x="272" y="132" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Truy cập hệ thống và xem Thực đơn" plantUmlId="action_2" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Truy cập hệ thống và xem Thực đơn" id="32">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="228" x="158" y="132" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_3" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="33">
-          <mxCell edge="1" parent="2" source="32" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="34">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="166" as="sourcePoint" />
-              <mxPoint x="272" y="186" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Chọn món ăn và tùy chọn (size, topping...)" plantUmlId="action_4" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Chọn món ăn và tùy chọn (size, topping...)" id="34">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="266" x="139" y="186" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_5" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="35">
-          <mxCell edge="1" parent="2" source="34" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="36">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="220" as="sourcePoint" />
-              <mxPoint x="272" y="240" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Thêm món vào Giỏ hàng" plantUmlId="action_6" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Thêm món vào Giỏ hàng" id="36">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="162" x="191" y="240" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_7" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="37">
-          <mxCell edge="1" parent="2" source="36" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="38">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="274" as="sourcePoint" />
-              <mxPoint x="272" y="294" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Xem giỏ hàng và chọn &quot;Tiến hành Đặt đơn&quot;" plantUmlId="action_8" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Xem giỏ hàng và chọn &quot;Tiến hành Đặt đơn&quot;" id="38">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="266" x="139" y="294" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_9" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="39">
-          <mxCell edge="1" parent="2" source="38" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="40">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="272" y="333" />
-                <mxPoint x="754.5" y="333" />
-              </Array>
-              <mxPoint x="272" y="328" as="sourcePoint" />
-              <mxPoint x="754.5" y="348" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Kiểm tra trạng thái đăng nhập" plantUmlId="action_12" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Kiểm tra trạng thái đăng nhập" id="40">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="195" x="657" y="348" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_13" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="41">
-          <mxCell edge="1" parent="2" source="40" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;entryX=0.518;entryY=0.049;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;entryPerimeter=0;exitX=0.487;exitY=0.996;exitDx=0;exitDy=0;exitPerimeter=0;endFill=0;" target="20">
-            <mxGeometry relative="1" x="0.0324" as="geometry">
-              <Array as="points">
-                <mxPoint x="752" y="388" />
-              </Array>
-              <mxPoint x="754.5" y="382" as="sourcePoint" />
-              <mxPoint x="754.5" y="402" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Chưa đăng nhập]" plantUmlId="e_16" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=top;labelPosition=right;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Chưa đăng nhập]" id="42">
-          <mxCell edge="1" parent="2" source="20" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=top;labelPosition=right;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="43">
-            <mxGeometry relative="1" x="-0.7065" as="geometry">
-              <mxPoint as="offset" />
-              <Array as="points">
-                <mxPoint x="752" y="438" />
-                <mxPoint x="272.5" y="438" />
-              </Array>
-              <mxPoint x="754.5" y="426" as="sourcePoint" />
-              <mxPoint x="272.5" y="450" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Chuyển hướng đến màn hình Đăng nhập" plantUmlId="action_20" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Chuyển hướng đến màn hình Đăng nhập" id="43">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="256" x="144.5" y="450" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_22" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="44">
-          <mxCell edge="1" parent="2" source="43" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;endFill=0;exitX=0.492;exitY=1.002;exitDx=0;exitDy=0;exitPerimeter=0;">
-            <mxGeometry relative="1" x="0.0446" as="geometry">
-              <Array as="points">
-                <mxPoint x="270" y="528" />
-              </Array>
-              <mxPoint x="272.5" y="484" as="sourcePoint" />
-              <mxPoint x="270" y="528" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_24" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="45">
-          <mxCell edge="1" parent="2" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="270" y="538" />
-              </Array>
-              <mxPoint x="270" y="528" as="sourcePoint" />
-              <mxPoint x="270" y="548" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Nhập thông tin xác thực (Email/Mật khẩu)" plantUmlId="action_25" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Nhập thông tin xác thực (Email/Mật khẩu)" id="46">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="263" x="141" y="548" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Xác thực thông tin tài khoản" plantUmlId="action_27" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Xác thực thông tin tài khoản" id="47">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="184" x="662.5" y="617" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_28" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="48">
-          <mxCell edge="1" parent="2" source="46" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="47">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="272.5" y="602" />
-                <mxPoint x="754.5" y="602" />
-              </Array>
-              <mxPoint x="272.5" y="582" as="sourcePoint" />
-              <mxPoint x="754.5" y="617" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_31" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="49">
-          <mxCell edge="1" parent="2" source="47" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;entryX=0.504;entryY=0.051;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;entryPerimeter=0;endFill=0;" target="21">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="754.5" y="651" as="sourcePoint" />
-              <mxPoint x="754.5" y="671" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Không]" plantUmlId="e_33" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;align=center;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Không]" id="50">
-          <mxCell edge="1" parent="2" source="21" style="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;align=center;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="51">
-            <mxGeometry relative="1" x="-0.4625" as="geometry">
-              <Array as="points">
-                <mxPoint x="919" y="680" />
-              </Array>
-              <mxPoint x="842.4999999999998" y="683" as="sourcePoint" />
-              <mxPoint x="919" y="617" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Báo lỗi đăng nhập" plantUmlId="backward_35" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Báo lỗi đăng nhập" id="51">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="124" x="857" y="583" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_36" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="52">
-          <mxCell edge="1" parent="2" source="51" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;endFill=0;">
-            <mxGeometry relative="1" x="-0.0196" as="geometry">
-              <Array as="points">
-                <mxPoint x="919" y="516" />
-              </Array>
-              <mxPoint x="919" y="583" as="sourcePoint" />
-              <mxPoint x="270" y="518" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Đăng nhập thành công, quay lại Giỏ hàng" plantUmlId="action_39" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Đăng nhập thành công, quay lại Giỏ hàng" id="53">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="259" x="143" y="727" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Hợp lệ]" plantUmlId="e_40" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;labelPosition=right;align=center;spacingLeft=2;verticalAlign=bottom;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Hợp lệ]" id="54">
-          <mxCell edge="1" parent="2" source="21" style="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;labelPosition=right;align=center;spacingLeft=2;verticalAlign=bottom;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="53">
-            <mxGeometry relative="1" x="0.942" as="geometry">
-              <Array as="points">
-                <mxPoint x="754.5" y="712" />
-                <mxPoint x="272.5" y="712" />
-              </Array>
-              <mxPoint x="754.5" y="695" as="sourcePoint" />
-              <mxPoint x="272.5" y="727" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Đã đăng nhập]" plantUmlId="e_43" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Đã đăng nhập]" id="55">
-          <mxCell edge="1" parent="2" source="20" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;endFill=0;">
-            <mxGeometry relative="1" x="-0.8146" y="-1" as="geometry">
-              <mxPoint as="offset" />
-              <Array as="points">
-                <mxPoint x="990" y="420" />
-                <mxPoint x="993" y="793" />
-              </Array>
-              <mxPoint x="760" y="418" as="sourcePoint" />
-              <mxPoint x="740" y="793" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_45" plantUmlBaseStyle="endArrow=classic;endSize=8;rounded=0;strokeColor=#181818;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="56">
-          <mxCell edge="1" parent="2" source="53" style="endArrow=classic;endSize=8;rounded=0;strokeColor=#181818;curved=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;">
-            <mxGeometry relative="1" x="-0.0836" as="geometry">
-              <Array as="points">
-                <mxPoint x="272.5" y="766" />
-                <mxPoint x="740" y="768" />
-              </Array>
-              <mxPoint x="272.5" y="761" as="sourcePoint" />
-              <mxPoint x="740" y="828" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Kiểm tra tồn kho &amp; khả dụng của các món" plantUmlId="action_51" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Kiểm tra tồn kho &amp; khả dụng của các món" id="57">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="263" x="623" y="825" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_52" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="58">
-          <mxCell edge="1" parent="2" source="57" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;endFill=0;">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="754.5" y="859" as="sourcePoint" />
-              <mxPoint x="754.5" y="879" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Cập nhật hoặc chọn lại món khác trong giỏ hàng" plantUmlId="action_58" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Cập nhật hoặc chọn lại món khác trong giỏ hàng" id="59">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="304" x="120" y="996" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_59" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="60">
-          <mxCell edge="1" parent="2" source="19" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="59">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="754.5" y="981" />
-                <mxPoint x="272" y="981" />
-              </Array>
-              <mxPoint x="754.5" y="961" as="sourcePoint" />
-              <mxPoint x="272" y="996" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Đủ hàng / Khả dụng]" plantUmlId="e_63" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Đủ hàng / Khả dụng]" id="61">
-          <mxCell edge="1" parent="2" source="22" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="62">
-            <mxGeometry relative="1" x="-0.7308" y="-7" as="geometry">
-              <mxPoint x="-1" as="offset" />
-              <Array as="points">
-                <mxPoint x="917" y="891" />
-                <mxPoint x="917" y="1057" />
-                <mxPoint x="754.5" y="1057" />
-                <mxPoint x="272" y="1057" />
-              </Array>
-              <mxPoint x="824.4999999999998" y="891" as="sourcePoint" />
-              <mxPoint x="272" y="1091" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Xác nhận thông tin giao hàng &amp; chọn cổng thanh toán" plantUmlId="action_69" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Xác nhận thông tin giao hàng &amp; chọn cổng thanh toán" id="62">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="334" x="105" y="1091" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="noteptr_71" plantUmlBaseStyle="triangle;direction=west;fillColor=#FEFFDD;strokeColor=#181818;strokeWidth=0.5;shadow=0;align=center;" plantUmlBaseValue="" id="63">
-          <mxCell parent="2" style="triangle;direction=west;fillColor=#FEFFDD;strokeColor=#181818;strokeWidth=0.5;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="8" width="21" x="439" y="1104" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Hỗ trợ các cổng:&#xa;- MoMo&#xa;- VNPay&#xa;- Stripe / Thẻ" plantUmlId="note_70" plantUmlBaseStyle="shape=note;size=10;fillColor=#FEFFDD;strokeColor=#181818;strokeWidth=0.5;fontSize=13;fontColor=#000000;whiteSpace=wrap;align=center;verticalAlign=middle;spacingLeft=4;shadow=0;" plantUmlBaseValue="Hỗ trợ các cổng:&#xa;- MoMo&#xa;- VNPay&#xa;- Stripe / Thẻ" id="64">
-          <mxCell parent="2" style="shape=note;size=10;fillColor=#FEFFDD;strokeColor=#181818;strokeWidth=0.5;fontSize=13;fontColor=#000000;whiteSpace=wrap;align=center;verticalAlign=middle;spacingLeft=4;shadow=0;" vertex="1">
-            <mxGeometry height="71" width="123" x="459" y="1072" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_75" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="65">
-          <mxCell edge="1" parent="2" source="62" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="17">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="1187" as="sourcePoint" />
-              <mxPoint x="272" y="1207" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_80" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="66">
-          <mxCell edge="1" parent="2" source="15" style="endArrow=none;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;endFill=0;">
-            <mxGeometry relative="1" x="-0.0337" as="geometry">
-              <Array as="points">
-                <mxPoint x="272" y="1246" />
-                <mxPoint x="754.5" y="1246" />
-              </Array>
-              <mxPoint x="272" y="1241" as="sourcePoint" />
-              <mxPoint x="754.5" y="1278" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Thất bại]" plantUmlId="e_89" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Thất bại]" id="67">
-          <mxCell edge="1" parent="2" source="24" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=0;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="6">
-            <mxGeometry relative="1" x="-0.0274" y="1" as="geometry">
-              <mxPoint as="offset" />
-              <Array as="points">
-                <mxPoint x="272" y="1288" />
-              </Array>
-              <mxPoint x="824" y="1326.9999999999998" as="sourcePoint" />
-              <mxPoint x="272" y="1359" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="[Hủy đơn]" plantUmlId="e_99" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="[Hủy đơn]" id="68">
-          <mxCell edge="1" parent="2" source="7" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;fontSize=11;verticalAlign=bottom;labelPosition=right;exitX=1;exitY=0.5;exitDx=0;exitDy=0;curved=0;rounded=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="69">
-            <mxGeometry relative="1" x="-0.7774" y="3" as="geometry">
-              <mxPoint as="offset" />
-              <Array as="points">
-                <mxPoint x="755" y="1398" />
-              </Array>
-              <mxPoint x="353" y="1424.9999999999998" as="sourcePoint" />
-              <mxPoint x="755" y="1457" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Hủy phiên giao dịch" plantUmlId="action_102" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Hủy phiên giao dịch" id="69">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="139" x="685.5" y="1457" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_121" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="70">
-          <mxCell edge="1" parent="2" source="11" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="72">
-            <mxGeometry relative="1" x="0.0007" as="geometry">
-              <Array as="points">
-                <mxPoint x="272" y="1568" />
-                <mxPoint x="754.5" y="1568" />
-              </Array>
-              <mxPoint x="272" y="1579" as="sourcePoint" />
-              <mxPoint x="754.5" y="1599" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <mxCell id="71" connectable="0" parent="70" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="[Thành công]" vertex="1">
-          <mxGeometry relative="1" x="-0.356" y="-1" as="geometry">
-            <mxPoint x="23" y="-17" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <UserObject label="Tạo Đơn hàng và lưu vào cơ sở dữ liệu (Database)" plantUmlId="action_124" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Tạo Đơn hàng và lưu vào cơ sở dữ liệu (Database)" id="72">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="304" x="602.5" y="1599" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_125" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="73">
-          <mxCell edge="1" parent="2" source="72" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="74">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="754.5" y="1633" as="sourcePoint" />
-              <mxPoint x="754.5" y="1653" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Trừ số lượng tồn kho (Inventory Deduct)" plantUmlId="action_126" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Trừ số lượng tồn kho (Inventory Deduct)" id="74">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="251" x="629" y="1653" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_127" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="75">
-          <mxCell edge="1" parent="2" source="74" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="76">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="754.5" y="1687" as="sourcePoint" />
-              <mxPoint x="754.5" y="1707" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Gửi thông báo Đặt hàng thành công cho Khách hàng" plantUmlId="action_128" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Gửi thông báo Đặt hàng thành công cho Khách hàng" id="76">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="323" x="593" y="1707" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_129" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.494;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="77">
-          <mxCell edge="1" parent="2" source="76" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.494;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="78">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="754.5" y="1741" as="sourcePoint" />
-              <mxPoint x="754.5" y="1761" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="forkbar_131" plantUmlBaseStyle="shape=rectangle;fillColor=#555555;strokeColor=#555555;shadow=0;align=center;" plantUmlBaseValue="" id="78">
-          <mxCell parent="2" style="shape=rectangle;fillColor=#555555;strokeColor=#555555;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="6" width="80" x="715" y="1761" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_132" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.925;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="79">
-          <mxCell edge="1" parent="2" source="78" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.925;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="80">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="789" y="1772" />
-                <mxPoint x="1161" y="1772" />
-              </Array>
-              <mxPoint x="789" y="1767" as="sourcePoint" />
-              <mxPoint x="1161" y="1787" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Nhận phiếu chế biến món (KDS/In bếp)" plantUmlId="action_136" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Nhận phiếu chế biến món (KDS/In bếp)" id="80">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="247" x="1037.5" y="1787" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Chuẩn bị và hoàn thành món ăn" plantUmlId="action_137" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Chuẩn bị và hoàn thành món ăn" id="81">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="210" x="1056" y="1841" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_138" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="82">
-          <mxCell edge="1" parent="2" source="80" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="81">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="1161" y="1821" as="sourcePoint" />
-              <mxPoint x="1161" y="1841" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Cập nhật trạng thái &quot;Sẵn sàng phục vụ / giao&quot;" plantUmlId="action_139" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Cập nhật trạng thái &quot;Sẵn sàng phục vụ / giao&quot;" id="83">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="286" x="1018" y="1895" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_140" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="84">
-          <mxCell edge="1" parent="2" source="81" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="83">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="1161" y="1875" as="sourcePoint" />
-              <mxPoint x="1161" y="1895" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_141" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.075;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="85">
-          <mxCell edge="1" parent="2" source="78" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.075;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="86">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="721" y="1772" />
-                <mxPoint x="272" y="1772" />
-              </Array>
-              <mxPoint x="721" y="1767" as="sourcePoint" />
-              <mxPoint x="272" y="1841" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Theo dõi tiến độ đơn hàng trên giao diện" plantUmlId="action_145" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Theo dõi tiến độ đơn hàng trên giao diện" id="86">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="257" x="143.5" y="1841" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_146" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.925;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="87">
-          <mxCell edge="1" parent="2" source="83" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.925;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="89">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="1161" y="1934" />
-                <mxPoint x="306" y="1934" />
-              </Array>
-              <mxPoint x="1161" y="1929" as="sourcePoint" />
-              <mxPoint x="306" y="1949" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_149" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="88">
-          <mxCell edge="1" parent="2" source="86" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;entryX=0.5;entryY=0;entryDx=0;entryDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="89">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="1875" as="sourcePoint" />
-              <mxPoint x="272" y="1949" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="joinbar_150" plantUmlBaseStyle="shape=rectangle;fillColor=#555555;strokeColor=#555555;shadow=0;align=center;" plantUmlBaseValue="" id="89">
-          <mxCell parent="2" style="shape=rectangle;fillColor=#555555;strokeColor=#555555;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="6" width="80" x="232" y="1949" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_151" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="90">
-          <mxCell edge="1" parent="2" source="89" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;exitX=0.5;exitY=1;exitDx=0;exitDy=0;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="28">
-            <mxGeometry relative="1" x="0.4472" as="geometry">
-              <Array as="points">
-                <mxPoint x="272" y="1960" />
-                <mxPoint x="1171" y="1960" />
-              </Array>
-              <mxPoint x="272" y="1955" as="sourcePoint" />
-              <mxPoint x="1439" y="1975" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_155" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="91">
-          <mxCell edge="1" parent="2" source="28" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="92">
-            <mxGeometry relative="1" as="geometry">
-              <Array as="points">
-                <mxPoint x="1171" y="2018" />
-                <mxPoint x="272" y="2014" />
-              </Array>
-              <mxPoint x="1439" y="2009" as="sourcePoint" />
-              <mxPoint x="272" y="2029" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Nhận món ăn &amp; kiểm tra đơn hàng" plantUmlId="action_158" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Nhận món ăn &amp; kiểm tra đơn hàng" id="92">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="220" x="162" y="2029" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_159" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="93">
-          <mxCell edge="1" parent="2" source="92" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="94">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="2063" as="sourcePoint" />
-              <mxPoint x="272" y="2083" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="Hoàn tất đơn hàng" plantUmlId="action_160" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" plantUmlBaseValue="Hoàn tất đơn hàng" id="94">
-          <mxCell parent="2" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=center;spacingLeft=8;shadow=0;" vertex="1">
-            <mxGeometry height="34" width="128" x="208" y="2083" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="e_161" plantUmlBaseStyle="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="95">
-          <mxCell edge="1" parent="2" source="94" style="endArrow=classic;endSize=8;strokeColor=#181818;align=center;curved=0;rounded=0;fontSize=11;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="96">
-            <mxGeometry relative="1" as="geometry">
-              <mxPoint x="272" y="2117" as="sourcePoint" />
-              <mxPoint x="272" y="2137" as="targetPoint" />
-            </mxGeometry>
-          </mxCell>
-        </UserObject>
-        <UserObject label="" plantUmlId="stop_162" plantUmlBaseStyle="ellipse;shape=endState;fillColor=#222222;strokeColor=#222222;shadow=0;align=center;" plantUmlBaseValue="" id="96">
-          <mxCell parent="2" style="ellipse;shape=endState;fillColor=#222222;strokeColor=#222222;shadow=0;align=center;" vertex="1">
-            <mxGeometry height="22" width="22" x="261" y="2248" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <UserObject label="Activity Diagram - Luồng Đặt Món và Thanh Toán (End-to-End)" plantUmlId="title_0" plantUmlBaseStyle="text;html=1;fillColor=none;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#000000;align=center;verticalAlign=middle;whiteSpace=wrap;" plantUmlBaseValue="Activity Diagram - Luồng Đặt Món và Thanh Toán (End-to-End)" id="97">
-          <mxCell parent="2" style="text;html=1;fillColor=none;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#000000;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1">
-            <mxGeometry height="24" width="469" x="569.5" y="28" as="geometry" />
-          </mxCell>
-        </UserObject>
-        <mxCell id="98" edge="1" parent="2" source="69" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="96" value="">
-          <mxGeometry height="50" relative="1" width="50" x="-0.841" as="geometry">
-            <Array as="points">
-              <mxPoint x="960" y="1474" />
-              <mxPoint x="960" y="2259" />
-            </Array>
-            <mxPoint x="830" y="1488" as="sourcePoint" />
-            <mxPoint x="960" y="2220.2121165754606" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="99" edge="1" parent="2" source="4" style="endArrow=classic;html=1;rounded=0;exitX=0.533;exitY=0.995;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="96" value="">
-          <mxGeometry height="50" relative="1" width="50" x="-0.6621" as="geometry">
-            <Array as="points">
-              <mxPoint x="1444.93" y="2308" />
-              <mxPoint x="272" y="2308" />
-            </Array>
-            <mxPoint x="1420" y="1688" as="sourcePoint" />
-            <mxPoint x="269.3277926404937" y="2308" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="100" edge="1" parent="2" source="59" style="endArrow=classic;html=1;rounded=0;defaultLabelBackgroundColor=page;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="36" value="">
-          <mxGeometry height="50" relative="1" width="50" x="-0.2704" as="geometry">
-            <Array as="points">
-              <mxPoint x="70" y="1013" />
-              <mxPoint x="70" y="257" />
-            </Array>
-            <mxPoint x="600" y="788" as="sourcePoint" />
-            <mxPoint x="70" y="528" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
-</mxfile>
+<svg host="65bd71144e" xmlns="http://www.w3.org/2000/svg" style="background: transparent; background-color: transparent; color-scheme: light;" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1548px" height="2300px" viewBox="0 0 1548 2300" id="ge-svg-F3YtxkSRqw0u2QciKDYW" content="&lt;mxfile&gt;&lt;diagram name=&quot;Page-1&quot; id=&quot;d7_qae3D39g9udsxQC6H&quot;&gt;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&lt;/diagram&gt;&lt;/mxfile&gt;">
+    <style type="text/css">
+        @supports (color: light-dark(#000, #fff)) { #ge-svg-F3YtxkSRqw0u2QciKDYW { --ge-adaptive-bg: light-dark(#ffffff, var(--ge-dark-color, #121212)); --ge-adaptive-fg: light-dark(#000000, var(--ge-light-color, #ffffff)); } }
+    </style>
+    <defs/>
+    <g>
+        <g data-cell-id="0">
+            <g data-cell-id="1">
+                <g data-cell-id="2">
+                    <g/>
+                    <g data-cell-id="3">
+                        <g>
+                            <path d="M 1278 74 L 1278 44 L 1538 44 L 1538 74" fill="#ffc0cb" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(255, 192, 203), rgb(102, 48, 57)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 1278 74 L 1278 2147 L 1538 2147 L 1538 74" fill="#ffc0cb" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(255, 192, 203), rgb(102, 48, 57)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 1278 74 L 1538 74" fill="none" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 59px; margin-left: 1408px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 18px; font-family: Helvetica; color: light-dark(#000000, #ededed); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
+                                                    Quản lý
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="1408" y="64" fill="#000000" font-family="Helvetica" font-size="18px" text-anchor="middle" style="fill: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
+                                        Quản lý
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                        <g data-cell-id="4">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="1303" y="1715" width="210" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 200px; height: 1px; padding-top: 1732px; margin-left: 1312px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Báo cáo và thống kê
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="1412" y="1736" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Báo cáo và thống kê
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="5">
+                        <g>
+                            <path d="M 10 74 L 10 44 L 557 44 L 557 74" fill="#ffffe0" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(255, 255, 224), rgb(22, 22, 0)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 10 74 L 10 2147 L 557 2147 L 557 74" fill="#ffffe0" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(255, 255, 224), rgb(22, 22, 0)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 10 74 L 557 74" fill="none" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 59px; margin-left: 284px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 18px; font-family: Helvetica; color: light-dark(#000000, #ededed); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
+                                                    Khách hàng (Customer)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="284" y="64" fill="#000000" font-family="Helvetica" font-size="18px" text-anchor="middle" style="fill: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
+                                        Khách hàng (Customer)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                        <g data-cell-id="6">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="127.5" y="1300" width="229" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 219px; height: 1px; padding-top: 1317px; margin-left: 137px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Nhận thông báo thanh toán thất bại
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="246" y="1321" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Nhận thông báo thanh toán thất bại
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="7">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 492 1444 L 504 1456 L 492 1468 L 480 1456 Z" fill="#f1f1f1" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                        </g>
+                        <g data-cell-id="9">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="136.5" y="1502" width="211" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 201px; height: 1px; padding-top: 1519px; margin-left: 146px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Tạo đơn mới
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="246" y="1523" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Tạo đơn mới
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="10">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 480 1456 L 218.91 1456 L 219.81 1493.93" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                                <path d="M 219.97 1500.68 L 215.26 1491.79 L 219.81 1493.93 L 224.26 1491.58 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                    <rect fill="#ffffff" stroke="none" x="320" y="1434" width="45" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                    <text x="342" y="1444">
+                                        [Thử lại ]
+                                    </text>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="17">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="75" y="1122" width="334" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 324px; height: 1px; padding-top: 1139px; margin-left: 84px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Chọn voucher, phương thức giảm giá
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="246" y="1143" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Chọn voucher, phương thức giảm giá
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="Mg5O9FHy8tDgNvwZNY8b-100">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="117" y="1222" width="250" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 240px; height: 1px; padding-top: 1239px; margin-left: 126px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Chọn phương thức thanh toán
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="246" y="1243" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Chọn phương thức thanh toán
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="18">
+                        <g>
+                            <path d="M 557 74 L 557 44 L 982 44 L 982 74" fill="#e0ffff" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(224, 255, 255), rgb(2, 29, 29)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 557 74 L 557 2147 L 982 2147 L 982 74" fill="#e0ffff" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(224, 255, 255), rgb(2, 29, 29)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 557 74 L 982 74" fill="none" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 59px; margin-left: 770px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 18px; font-family: Helvetica; color: light-dark(#000000, #ededed); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
+                                                    Hệ thống (Web/API Backend)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="770" y="64" fill="#000000" font-family="Helvetica" font-size="18px" text-anchor="middle" style="fill: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
+                                        Hệ thống (Web/API Backend)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                        <g data-cell-id="19">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="578" y="920" width="293" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 283px; height: 1px; padding-top: 937px; margin-left: 587px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Thông báo món đã hết hoặc không đủ số lượng
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="729" y="941" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Thông báo món đã hết hoặc không đủ số lượng
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="20">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 722 390 L 734 402 L 722 414 L 710 402 Z" fill="#ffffff" stroke="#000000" stroke-miterlimit="10" pointer-events="all" style="fill: var(--ge-adaptive-bg, #ffffff); stroke: var(--ge-adaptive-fg, #000000);"/>
+                            </g>
+                        </g>
+                        <g data-cell-id="21">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 724.5 650 L 736.5 662 L 724.5 674 L 712.5 662 Z" fill="#f1f1f1" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                        </g>
+                        <g data-cell-id="22">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 724.5 860 L 736.5 872 L 724.5 884 L 712.5 872 Z" fill="#f1f1f1" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                        </g>
+                        <g data-cell-id="23">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 724.5 884 L 724.5 912.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                                <path d="M 724.5 918.88 L 720 909.88 L 724.5 912.13 L 729 909.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                    <rect fill="#ffffff" stroke="none" x="672" y="893" width="106" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                    <text x="724.5" y="902">
+                                        [Còn thiếu / Hết món]
+                                    </text>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="24">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 724.5 1260 L 736.5 1272 L 724.5 1284 L 712.5 1272 Z" fill="#f1f1f1" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                        </g>
+                        <g data-cell-id="25">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 736.5 1272 L 875.5 1272 L 875.5 1558 L 724.5 1558 L 724.5 1624" fill="none" stroke="#000000" stroke-miterlimit="10" pointer-events="stroke" style="stroke: var(--ge-adaptive-fg, #000000);"/>
+                            </g>
+                            <g data-cell-id="26">
+                                <g>
+                                    <g>
+                                        <switch>
+                                            <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                                <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 1261px; margin-left: 822px;">
+                                                    <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; background-color: #ffffff; ">
+                                                        <div style="display: inline-block; font-size: 11px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; background-color: var(--ge-adaptive-bg, #ffffff); white-space: nowrap; ">
+                                                            [Thành công]
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </foreignObject>
+                                            <text x="822" y="1264" fill="#000000" font-family="Helvetica" font-size="11px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                                [Thành công]
+                                            </text>
+                                        </switch>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="15">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="610" y="1122" width="250" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 240px; height: 1px; padding-top: 1139px; margin-left: 619px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Tạo Đơn hàng và lưu vào cơ sở dữ liệu (Database)
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="739" y="1136" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            <tspan x="739" y="1136">
+                                                Tạo Đơn hàng và lưu vào cơ sở dữ liệu
+                                            </tspan>
+                                            <tspan x="739" y="1150">
+                                                (Database)
+                                            </tspan>
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="27">
+                        <g>
+                            <path d="M 982 74 L 982 44 L 1278 44 L 1278 74" fill="#90ee90" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(144, 238, 144), rgb(0, 78, 0)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 982 74 L 982 2147 L 1278 2147 L 1278 74" fill="#90ee90" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(144, 238, 144), rgb(0, 78, 0)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 982 74 L 1278 74" fill="none" stroke="#181818" stroke-width="1.5" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 1px; height: 1px; padding-top: 59px; margin-left: 1130px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 18px; font-family: Helvetica; color: light-dark(#000000, #ededed); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
+                                                    Nhân viên
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="1130" y="64" fill="#000000" font-family="Helvetica" font-size="18px" text-anchor="middle" style="fill: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
+                                        Nhân viên
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                        <g data-cell-id="28">
+                            <g transform="translate(0.5,0.5)">
+                                <rect x="1030" y="1957" width="222" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            </g>
+                            <g>
+                                <g>
+                                    <switch>
+                                        <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                            <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 212px; height: 1px; padding-top: 1974px; margin-left: 1039px;">
+                                                <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                    <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                        Nhận món và giao đến khách hàng
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </foreignObject>
+                                        <text x="1145" y="1978" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                            Nhận món và giao đến khách hàng
+                                        </text>
+                                    </switch>
+                                </g>
+                            </g>
+                        </g>
+                        <g data-cell-id="29">
+                            <g transform="translate(0.5,0.5)">
+                                <path d="M 850 1650 L 1410 1650 L 1410 1708.63" fill="none" stroke="#000000" stroke-miterlimit="10" pointer-events="stroke" style="stroke: var(--ge-adaptive-fg, #000000);"/>
+                                <path d="M 1410 1713.88 L 1406.5 1706.88 L 1410 1708.63 L 1413.5 1706.88 Z" fill="#000000" stroke="#000000" stroke-miterlimit="10" pointer-events="all" style="fill: var(--ge-adaptive-fg, #000000); stroke: var(--ge-adaptive-fg, #000000);"/>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="30">
+                        <g transform="translate(0.5,0.5)">
+                            <ellipse cx="242" cy="84" rx="10" ry="10" fill="#222222" stroke="#222222" pointer-events="all" style="fill: light-dark(rgb(34, 34, 34), rgb(208, 208, 208)); stroke: light-dark(rgb(34, 34, 34), rgb(208, 208, 208));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="31">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 94 L 242 106.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 112.88 L 237.5 103.88 L 242 106.13 L 246.5 103.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="32">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="128" y="114" width="228" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 218px; height: 1px; padding-top: 131px; margin-left: 137px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Truy cập hệ thống và xem Thực đơn
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="135" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Truy cập hệ thống và xem Thực đơn
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="33">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 148 L 242 160.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 166.88 L 237.5 157.88 L 242 160.13 L 246.5 157.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="34">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="109" y="168" width="266" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 256px; height: 1px; padding-top: 185px; margin-left: 118px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Chọn món ăn và tùy chọn (size, topping...)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="189" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Chọn món ăn và tùy chọn (size, topping...)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="35">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 202 L 242 214.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 220.88 L 237.5 211.88 L 242 214.13 L 246.5 211.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="36">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="161" y="222" width="162" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 152px; height: 1px; padding-top: 239px; margin-left: 170px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Thêm món vào Giỏ hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="243" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Thêm món vào Giỏ hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="39">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 256 L 242 315 L 724.5 315 L 724.5 322.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 724.5 328.88 L 720 319.88 L 724.5 322.13 L 729 319.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="40">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="627" y="330" width="195" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 185px; height: 1px; padding-top: 347px; margin-left: 636px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Kiểm tra trạng thái đăng nhập
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="729" y="351" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Kiểm tra trạng thái đăng nhập
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="41">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 721.97 363.86 L 722 370 L 722.43 391.18" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="42">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 722 414 L 722 420 L 242.5 420 L 242.5 424.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242.5 430.88 L 238 421.88 L 242.5 424.13 L 247 421.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="610" y="428" width="91" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="655" y="437">
+                                    [Chưa đăng nhập]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="43">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="114.5" y="432" width="256" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 246px; height: 1px; padding-top: 449px; margin-left: 123px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Chuyển hướng đến màn hình Đăng nhập
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="453" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Chuyển hướng đến màn hình Đăng nhập
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="44">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 240.45 466.07 L 240 510" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="45">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 240 510 L 240 520 L 240 522.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 240 528.88 L 235.5 519.88 L 240 522.13 L 244.5 519.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="46">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="111" y="530" width="263" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 253px; height: 1px; padding-top: 547px; margin-left: 120px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Nhập thông tin xác thực (Email/Mật khẩu)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="551" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Nhập thông tin xác thực (Email/Mật khẩu)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="47">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="632.5" y="599" width="184" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 174px; height: 1px; padding-top: 616px; margin-left: 642px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Xác thực thông tin tài khoản
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="729" y="620" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Xác thực thông tin tài khoản
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="48">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242.5 564 L 242.5 584 L 724.5 584 L 724.5 591.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 724.5 597.88 L 720 588.88 L 724.5 591.13 L 729 588.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="49">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.55 633 L 724.6 651.22" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="50">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 736.5 662 L 889 662 L 889 606.87" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 889 600.12 L 893.5 609.12 L 889 606.87 L 884.5 609.12 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="775" y="656" width="40" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="794.5" y="666.5">
+                                    [Không]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="51">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="827" y="565" width="124" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 114px; height: 1px; padding-top: 582px; margin-left: 836px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Báo lỗi đăng nhập
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="893" y="586" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Báo lỗi đăng nhập
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="52">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 889 565 L 889 498 L 240 500" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="53">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="113" y="709" width="259" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 249px; height: 1px; padding-top: 726px; margin-left: 122px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Đăng nhập thành công, quay lại Giỏ hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="247" y="730" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Đăng nhập thành công, quay lại Giỏ hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="54">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.5 674 L 724.5 694 L 242.5 694 L 242.5 701.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242.5 707.88 L 238 698.88 L 242.5 701.13 L 247 698.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="223" y="679" width="41" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="243.5" y="689">
+                                    [Hợp lệ]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="55">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 734 402 L 960 402 L 963 775 L 710 775" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="775" y="388" width="77" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="813" y="398">
+                                    [Đã đăng nhập]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="56">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242.5 743 L 242.5 748 L 710 750 L 710 802.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 710 808.88 L 705.5 799.88 L 710 802.13 L 714.5 799.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="57">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="593" y="807" width="263" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 253px; height: 1px; padding-top: 824px; margin-left: 602px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Kiểm tra tồn kho &amp; khả dụng của các món
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="729" y="828" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Kiểm tra tồn kho &amp; khả dụng của các món
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="58">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.5 841 L 724.5 861" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="59">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="90" y="978" width="304" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 294px; height: 1px; padding-top: 995px; margin-left: 99px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Cập nhật hoặc chọn lại món khác trong giỏ hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="999" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Cập nhật hoặc chọn lại món khác trong giỏ hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="60">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.5 954 L 724.5 963 L 242 963 L 242 970.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 976.88 L 237.5 967.88 L 242 970.13 L 246.5 967.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="61">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 736.5 872 L 887 873 L 887 1039 L 724.5 1039 L 242 1039 L 242 1065.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 1071.88 L 237.5 1062.88 L 242 1065.13 L 246.5 1062.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="817" y="864" width="106" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="869.45" y="874.89">
+                                    [Đủ hàng / Khả dụng]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="62">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="75" y="1073" width="334" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 324px; height: 1px; padding-top: 1090px; margin-left: 84px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Xác nhận thông tin đơn hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="1094" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Xác nhận thông tin đơn hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="65">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 1107 L 242 1114.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 1120.88 L 237.5 1111.88 L 242 1114.13 L 246.5 1111.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="66">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 366.5 1242.26 L 430 1242 L 724.5 1242 L 724.5 1260" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="67">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 712.5 1272 L 242 1270 L 242 1292.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 1298.88 L 237.5 1289.88 L 242 1292.13 L 246.5 1289.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="446" y="1256" width="48" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="469.5" y="1266.97">
+                                    [Thất bại]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="68">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 356.5 1317 L 725 1317 L 725 1431.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 725 1437.88 L 720.5 1428.88 L 725 1431.13 L 729.5 1428.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="69">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="655.5" y="1439" width="139" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 129px; height: 1px; padding-top: 1456px; margin-left: 665px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Lưu trạng thái Failed
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="729" y="1460" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Lưu trạng thái Failed
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="73">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.5 1615 L 724.5 1627.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 724.5 1633.88 L 720 1624.88 L 724.5 1627.13 L 729 1624.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="74">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="599" y="1635" width="251" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 241px; height: 1px; padding-top: 1652px; margin-left: 608px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Trừ số lượng tồn kho (Inventory Deduct)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="729" y="1656" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Trừ số lượng tồn kho (Inventory Deduct)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="75">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.5 1669 L 724.5 1681.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 724.5 1687.88 L 720 1678.88 L 724.5 1681.13 L 729 1678.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="76">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="563" y="1689" width="323" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 313px; height: 1px; padding-top: 1706px; margin-left: 572px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Gửi thông báo Đặt hàng thành công cho Khách hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="729" y="1710" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Gửi thông báo Đặt hàng thành công cho Khách hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="77">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 724.51 1723 L 724.52 1735.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 724.52 1741.88 L 720.01 1732.88 L 724.52 1735.13 L 729.01 1732.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="78">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="685" y="1743" width="80" height="6" fill="#555555" stroke="#555555" pointer-events="all" style="fill: light-dark(rgb(85, 85, 85), rgb(164, 164, 164)); stroke: light-dark(rgb(85, 85, 85), rgb(164, 164, 164));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="79">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 759 1749 L 759 1754 L 1131 1754 L 1131 1761.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 1131 1767.88 L 1126.5 1758.88 L 1131 1761.13 L 1135.5 1758.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="80">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="1007.5" y="1769" width="247" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 237px; height: 1px; padding-top: 1786px; margin-left: 1017px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Nhận phiếu chế biến món (KDS/In bếp)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="1135" y="1790" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Nhận phiếu chế biến món (KDS/In bếp)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="81">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="1026" y="1823" width="210" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 200px; height: 1px; padding-top: 1840px; margin-left: 1035px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Chuẩn bị và hoàn thành món ăn
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="1135" y="1844" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Chuẩn bị và hoàn thành món ăn
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="82">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 1131 1803 L 1131 1815.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 1131 1821.88 L 1126.5 1812.88 L 1131 1815.13 L 1135.5 1812.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="83">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="988" y="1877" width="286" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 276px; height: 1px; padding-top: 1894px; margin-left: 997px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Cập nhật trạng thái "Sẵn sàng phục vụ / giao"
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="1135" y="1898" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Cập nhật trạng thái "Sẵn sàng phục vụ / giao"
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="84">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 1131 1857 L 1131 1869.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 1131 1875.88 L 1126.5 1866.88 L 1131 1869.13 L 1135.5 1866.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="85">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 691 1749 L 691 1754 L 242 1754 L 242 1815.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 1821.88 L 237.5 1812.88 L 242 1815.13 L 246.5 1812.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="86">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="113.5" y="1823" width="257" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 247px; height: 1px; padding-top: 1840px; margin-left: 122px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Theo dõi tiến độ đơn hàng trên giao diện
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="1844" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Theo dõi tiến độ đơn hàng trên giao diện
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="87">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 1131 1911 L 1131 1916 L 276 1916 L 276 1923.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 276 1929.88 L 271.5 1920.88 L 276 1923.13 L 280.5 1920.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="88">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 1857 L 242 1923.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 1929.88 L 237.5 1920.88 L 242 1923.13 L 246.5 1920.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="89">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="202" y="1931" width="80" height="6" fill="#555555" stroke="#555555" pointer-events="all" style="fill: light-dark(rgb(85, 85, 85), rgb(164, 164, 164)); stroke: light-dark(rgb(85, 85, 85), rgb(164, 164, 164));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="90">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 1937 L 242 1942 L 1141 1942 L 1141 1949.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 1141 1955.88 L 1136.5 1946.88 L 1141 1949.13 L 1145.5 1946.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="91">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 1141 1991 L 1141 2000 L 242 1996 L 242 2003.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 2009.88 L 237.5 2000.88 L 242 2003.13 L 246.5 2000.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="92">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="132" y="2011" width="220" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 210px; height: 1px; padding-top: 2028px; margin-left: 141px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Nhận món ăn &amp; kiểm tra đơn hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="2032" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Nhận món ăn &amp; kiểm tra đơn hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="93">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 2045 L 242 2057.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 2063.88 L 237.5 2054.88 L 242 2057.13 L 246.5 2054.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="94">
+                        <g transform="translate(0.5,0.5)">
+                            <rect x="178" y="2065" width="128" height="34" rx="12.5" ry="12.5" fill="#f1f1f1" stroke="#181818" stroke-width="0.5" pointer-events="all" style="fill: light-dark(rgb(241, 241, 241), rgb(30, 30, 30)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 118px; height: 1px; padding-top: 2082px; margin-left: 187px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 12px; font-family: Helvetica; color: var(--ge-adaptive-fg, #000000); line-height: 1.2; pointer-events: all; white-space: normal; word-wrap: normal; ">
+                                                    Hoàn tất đơn hàng
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="246" y="2086" fill="#000000" font-family="Helvetica" font-size="12px" text-anchor="middle" style="fill: var(--ge-adaptive-fg, #000000);">
+                                        Hoàn tất đơn hàng
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="95">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 242 2099 L 242 2222.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 2228.88 L 237.5 2219.88 L 242 2222.13 L 246.5 2219.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="96">
+                        <g transform="translate(0.5,0.5)">
+                            <ellipse cx="242" cy="2241" rx="7" ry="7" fill="#222222" stroke="#222222" pointer-events="all" style="fill: light-dark(rgb(34, 34, 34), rgb(208, 208, 208)); stroke: light-dark(rgb(34, 34, 34), rgb(208, 208, 208));"/>
+                            <ellipse cx="242" cy="2241" rx="11" ry="11" fill="none" stroke="#222222" pointer-events="all" style="stroke: light-dark(rgb(34, 34, 34), rgb(208, 208, 208));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="97">
+                        <g>
+                            <rect x="539.5" y="10" width="469" height="24" fill="none" stroke="none" pointer-events="all"/>
+                        </g>
+                        <g>
+                            <g>
+                                <switch>
+                                    <foreignObject style="overflow: visible; text-align: left;" pointer-events="none" width="100%" height="100%" requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">
+                                        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: unsafe center; justify-content: unsafe center; width: 467px; height: 1px; padding-top: 22px; margin-left: 540px;">
+                                            <div style="box-sizing: border-box; font-size: 0; text-align: center; color: #000000; ">
+                                                <div style="display: inline-block; font-size: 14px; font-family: Helvetica; color: light-dark(#000000, #ededed); line-height: 1.2; pointer-events: all; font-weight: bold; white-space: normal; word-wrap: normal; ">
+                                                    Activity Diagram - Luồng Đặt Món và Thanh Toán (End-to-End)
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </foreignObject>
+                                    <text x="774" y="26" fill="#000000" font-family="Helvetica" font-size="14px" text-anchor="middle" font-weight="bold" style="fill: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
+                                        Activity Diagram - Luồng Đặt Món và Thanh Toán (End-to-End)
+                                    </text>
+                                </switch>
+                            </g>
+                        </g>
+                    </g>
+                    <g data-cell-id="99">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 1414.93 1748.83 L 1414.93 2290 L 242 2290 L 242 2258.37" fill="none" stroke="#000000" stroke-miterlimit="10" pointer-events="stroke" style="stroke: var(--ge-adaptive-fg, #000000);"/>
+                            <path d="M 242 2253.12 L 245.5 2260.12 L 242 2258.37 L 238.5 2260.12 Z" fill="#000000" stroke="#000000" stroke-miterlimit="10" pointer-events="all" style="fill: var(--ge-adaptive-fg, #000000); stroke: var(--ge-adaptive-fg, #000000);"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="100">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 90 995 L 40 995 L 40 239 L 154.63 239" fill="none" stroke="#000000" stroke-miterlimit="10" pointer-events="stroke" style="stroke: var(--ge-adaptive-fg, #000000);"/>
+                            <path d="M 159.88 239 L 152.88 242.5 L 154.63 239 L 152.88 235.5 Z" fill="#000000" stroke="#000000" stroke-miterlimit="10" pointer-events="all" style="fill: var(--ge-adaptive-fg, #000000); stroke: var(--ge-adaptive-fg, #000000);"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="Mg5O9FHy8tDgNvwZNY8b-105">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 409 1139 L 602.13 1139" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 608.88 1139 L 599.88 1143.5 L 602.13 1139 L 599.88 1134.5 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="Mg5O9FHy8tDgNvwZNY8b-108">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 735 1156 L 735 1202 L 242 1202 L 242 1214.13" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 242 1220.88 L 237.5 1211.88 L 242 1214.13 L 246.5 1211.88 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="8">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 655.5 1456 L 504 1456" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                    </g>
+                    <g data-cell-id="Mg5O9FHy8tDgNvwZNY8b-114">
+                        <g transform="translate(0.5,0.5)">
+                            <path d="M 492 1468 L 500 2241 L 260.87 2241" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                            <path d="M 254.12 2241 L 263.12 2236.5 L 260.87 2241 L 263.12 2245.5 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        </g>
+                        <g>
+                            <g fill="#000000" font-family="Helvetica" text-anchor="middle" font-size="11px" style="fill: var(--ge-adaptive-fg, #000000);">
+                                <rect fill="#ffffff" stroke="none" x="460" y="1524" width="52" height="14" stroke-width="0" style="fill: var(--ge-adaptive-bg, #ffffff);"/>
+                                <text x="485.74" y="1534.07">
+                                    [Kết thúc ]
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+                <g data-cell-id="Mg5O9FHy8tDgNvwZNY8b-112">
+                    <g transform="translate(0.5,0.5)">
+                        <path d="M 136.5 1519 L 40 1519 L 40 1001.3" fill="none" stroke="#181818" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                        <path d="M 40 994.55 L 44.5 1003.55 L 40 1001.3 L 35.5 1003.55 Z" fill="#181818" stroke="#181818" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(24, 24, 24), rgb(217, 217, 217)); stroke: light-dark(rgb(24, 24, 24), rgb(217, 217, 217));"/>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+    <switch>
+        <g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"/>
+        <a transform="translate(0,-5)" xlink:href="https://www.drawio.com/doc/faq/svg-export-text-problems" target="_blank">
+            <text text-anchor="middle" font-size="10px" x="50%" y="100%">
+                Text is not SVG - cannot display
+            </text>
+        </a>
+    </switch>
+</svg>
